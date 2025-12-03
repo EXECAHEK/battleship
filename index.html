@@ -47,8 +47,8 @@ h1, h2, h3 { margin: 10px 0; }
 .board-container {
     display: inline-block;
     position: relative;
-    padding-left: 30px;  /* место для букв */
-    padding-top: 30px;   /* место для цифр */
+    padding-left: 30px;
+    padding-top: 30px;
 }
 
 .board {
@@ -71,9 +71,9 @@ h1, h2, h3 { margin: 10px 0; }
     background-position: center;
 }
 
-.cell.ship { background-image: url('https://i.ibb.co/1mJ3y9R/ship.png'); }
-.cell.hit { background-image: url('https://i.ibb.co/7W2Vv5s/hit.png'); }
-.cell.miss { background-image: url('https://i.ibb.co/yfN3Jz5/miss.png'); }
+.cell.ship { background-image: url('img/ship.png'); }
+.cell.hit { background-image: url('img/hit.png'); }
+.cell.miss { background-image: url('img/miss.png'); }
 
 .label-row, .label-col {
     position: absolute;
@@ -93,7 +93,6 @@ h1, h2, h3 { margin: 10px 0; }
     position: fixed;
     width: 12px;
     height: 12px;
-    background-color: yellow;
     z-index: 9999;
     pointer-events: none;
     animation: fall 4s linear forwards;
@@ -103,6 +102,7 @@ h1, h2, h3 { margin: 10px 0; }
     100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
 }
 
+/* Overlay победы/поражения */
 #overlay {
     position: fixed;
     top: 0; left: 0;
@@ -115,9 +115,16 @@ h1, h2, h3 { margin: 10px 0; }
     font-size: 4rem;
     font-weight: bold;
     z-index: 10000;
-    pointer-events: all;
     background: rgba(0,0,0,0.5);
     color: gold;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+#overlay.show {
+    opacity: 1;
+    pointer-events: all;
 }
 
 #overlay.lose { color: red; }
@@ -174,7 +181,7 @@ h1, h2, h3 { margin: 10px 0; }
     <p id="status"></p>
 </div>
 
-<div id="overlay" class="hidden">
+<div id="overlay">
     <div id="overlay-text"></div>
     <button id="restart-btn" class="hidden">Перезапустить</button>
 </div>
@@ -201,7 +208,6 @@ let playerBoard = [];
 let enemyBoard = [];
 const letters = ['A','B','C','D','E','F','G','H','I','J'];
 
-// Классические корабли для бота
 const enemyShips = [
     {size:4, count:1},
     {size:3, count:2},
@@ -244,14 +250,32 @@ function renderBoard(board, container, clickable=false, clickHandler=null, hideS
     }
 }
 
+// Проверка на возможность поставить корабль с отступом
+function canPlaceShip(board, x, y, size, vertical){
+    for(let i=-1;i<=size;i++){
+        for(let j=-1;j<=1;j++){
+            let xi=x+(vertical?i:0);
+            let yi=y+(vertical?0:i)+j;
+            if(xi>=0 && xi<10 && yi>=0 && yi<10){
+                if(board[xi][yi]==='ship') return false;
+            }
+        }
+    }
+    return true;
+}
+
 // Игрок расставляет вручную
+function togglePlayerCell(x,y,cell){
+    if(playerBoard[x][y]==='ship'){ playerBoard[x][y]=null; cell.classList.remove('ship'); return; }
+    if(canPlaceShip(playerBoard,x,y,1,true)){
+        playerBoard[x][y]='ship';
+        cell.classList.add('ship');
+    }
+}
+
 function setupPlayerBoard(){
     playerBoard=createBoardArray();
-    let placedCells=0;
-    renderBoard(playerBoard, playerBoardDiv,true,(x,y,cell)=>{
-        if(playerBoard[x][y]==='ship'){ playerBoard[x][y]=null; cell.classList.remove('ship'); placedCells--; }
-        else if(placedCells<20){ playerBoard[x][y]='ship'; cell.classList.add('ship'); placedCells++; }
-    });
+    renderBoard(playerBoard, playerBoardDiv,true,togglePlayerCell);
 }
 
 // Случайная расстановка кораблей бота
@@ -270,20 +294,15 @@ function placeShipRandom(size){
         let vertical=Math.random()<0.5;
         let x=Math.floor(Math.random()*10);
         let y=Math.floor(Math.random()*10);
-        let canPlace=true;
+        if(vertical && x+size>10) continue;
+        if(!vertical && y+size>10) continue;
+        if(!canPlaceShip(enemyBoard,x,y,size,vertical)) continue;
         for(let i=0;i<size;i++){
             let xi=x+(vertical?i:0);
             let yi=y+(vertical?0:i);
-            if(xi>9||yi>9||enemyBoard[xi][yi]==='ship'){ canPlace=false; break; }
+            enemyBoard[xi][yi]='ship';
         }
-        if(canPlace){
-            for(let i=0;i<size;i++){
-                let xi=x+(vertical?i:0);
-                let yi=y+(vertical?0:i);
-                enemyBoard[xi][yi]='ship';
-            }
-            placed=true;
-        }
+        placed=true;
     }
 }
 
@@ -298,15 +317,44 @@ function startGame(){
     statusText.textContent="Ваш ход!";
 }
 
+// Анимация выстрела
+function shootAnimation(cell, hit){
+    const anim=document.createElement('div');
+    anim.style.position='absolute';
+    anim.style.top='0'; anim.style.left='0';
+    anim.style.width='100%'; anim.style.height='100%';
+    anim.style.borderRadius='50%';
+    anim.style.background=hit?'rgba(255,0,0,0.6)':'rgba(255,255,255,0.6)';
+    anim.style.transform='scale(0)';
+    anim.style.transition='transform 0.3s, opacity 0.3s';
+    cell.appendChild(anim);
+    setTimeout(()=>{ anim.style.transform='scale(1)'; anim.style.opacity='0'; },10);
+    setTimeout(()=>anim.remove(),300);
+}
+
+// Игрок ходит
 function playerMove(x,y,cell){
     if(enemyBoard[x][y]==='hit'||enemyBoard[x][y]==='miss') return;
     let hit=false;
-    if(enemyBoard[x][y]==='ship'){ enemyBoard[x][y]='hit'; cell.classList.add('hit'); statusText.textContent='Попадание!'; hit=true; }
-    else { enemyBoard[x][y]='miss'; cell.classList.add('miss'); statusText.textContent='Мимо!'; hit=false; }
+    if(enemyBoard[x][y]==='ship'){
+        enemyBoard[x][y]='hit';
+        cell.classList.add('hit');
+        shootAnimation(cell,true);
+        statusText.textContent='Попадание!';
+        hit=true;
+    }
+    else{
+        enemyBoard[x][y]='miss';
+        cell.classList.add('miss');
+        shootAnimation(cell,false);
+        statusText.textContent='Мимо!';
+        hit=false;
+    }
     if(checkWin(enemyBoard)){ showWin(); return; }
     if(!hit) setTimeout(botTurn,500);
 }
 
+// Ход бота
 function botTurn(){
     let x,y,hit;
     do{
@@ -314,26 +362,37 @@ function botTurn(){
         y=Math.floor(Math.random()*10);
         if(playerBoard[x][y]==='hit'||playerBoard[x][y]==='miss') continue;
         let cell=playerGameBoardDiv.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
-        if(playerBoard[x][y]==='ship'){ playerBoard[x][y]='hit'; cell.classList.add('hit'); statusText.textContent='Бот попал!'; hit=true; }
-        else { playerBoard[x][y]='miss'; cell.classList.add('miss'); statusText.textContent='Бот промахнулся!'; hit=false; }
+        if(playerBoard[x][y]==='ship'){
+            playerBoard[x][y]='hit';
+            cell.classList.add('hit');
+            shootAnimation(cell,true);
+            statusText.textContent='Бот попал!';
+            hit=true;
+        } else{
+            playerBoard[x][y]='miss';
+            cell.classList.add('miss');
+            shootAnimation(cell,false);
+            statusText.textContent='Бот промахнулся!';
+            hit=false;
+        }
         if(checkWin(playerBoard)){ showLose(); return; }
     } while(hit);
 }
 
-// Победа и поражение
+// Победа/Поражение
 function showWin(){
-    overlay.className='win';
     overlayText.textContent='ПОБЕДА!';
-    overlay.classList.remove('hidden');
+    overlay.classList.remove('lose');
+    overlay.classList.add('show');
     restartBtn.classList.remove('hidden');
-    launchConfetti(200,6);  // больше конфетти и дольше
+    launchConfetti(200,6);
 }
+
 function showLose(){
-    overlay.className='lose';
     overlayText.textContent='ПОРАЖЕНИЕ!';
-    overlay.classList.remove('hidden');
+    overlay.classList.add('lose');
+    overlay.classList.add('show');
     restartBtn.classList.remove('hidden');
-    document.body.style.background='linear-gradient(to right, #800000, #ff0000)';
     launchConfetti(100,4);
 }
 
@@ -369,9 +428,8 @@ startGameBtn.addEventListener('click', ()=>{
     startGame();
 });
 
-restartBtn.addEventListener('click', ()=>{
-    location.reload();
-});
+restartBtn.addEventListener('click', ()=>{ location.reload(); });
+
 </script>
 </body>
 </html>
