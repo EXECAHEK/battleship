@@ -1,29 +1,231 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<title>Морской Бой</title>
-<style>
-body { font-family: Arial, sans-serif; background: #0b3d91; color: white; text-align: center; }
-button { padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Морской Бой</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(to right, #1f4037, #99f2c8);
+            color: #fff;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        #app {
+            max-width: 700px;
+            margin: 20px auto;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+
+        h1, h2, h3 {
+            margin: 10px 0;
+        }
+
+        .menu-btn {
+            display: block;
+            width: 70%;
+            margin: 10px auto;
+            padding: 15px;
+            font-size: 1.2rem;
+            border: none;
+            border-radius: 10px;
+            background-color: #4caf50;
+            color: #fff;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .menu-btn:hover {
+            background-color: #45a049;
+        }
+
+        .hidden { display: none; }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(10, 30px);
+            grid-template-rows: repeat(10, 30px);
+            gap: 2px;
+            justify-content: center;
+            margin: 20px auto;
+        }
+
+        .cell {
+            width: 30px;
+            height: 30px;
+            background-color: #1e2f1f;
+            border: 1px solid #555;
+            cursor: pointer;
+        }
+
+        .cell.ship { background-color: #4caf50; }
+        .cell.hit { background-color: red; }
+        .cell.miss { background-color: gray; }
+    </style>
 </head>
 <body>
-<h1>Морской Бой</h1>
-<h2>Выберите режим игры:</h2>
-<button onclick="startGame('bot')">Против бота</button>
-<button onclick="startGame('player')">Против игрока</button>
+    <div id="app">
+        <h1>Морской Бой</h1>
 
-<script>
-function startGame(mode) {
-    if(mode === 'bot') {
-        let difficulty = prompt("Выберите сложность: Легкая, Средняя, Сложная");
-        alert(`Начинаем игру с ботом, сложность: ${difficulty}`);
-        // Здесь можно добавить логику размещения кораблей
-    } else {
-        alert("Начинаем игру против другого игрока");
-    }
-}
-</script>
+        <!-- Меню -->
+        <div id="menu">
+            <button class="menu-btn" id="btn-bot">Против Бота</button>
+            <button class="menu-btn" id="btn-player">Против Игрока</button>
+        </div>
+
+        <!-- Выбор сложности -->
+        <div id="difficulty" class="hidden">
+            <h2>Выбери сложность</h2>
+            <button class="menu-btn difficulty-btn" data-level="easy">Лёгкая</button>
+            <button class="menu-btn difficulty-btn" data-level="medium">Средняя</button>
+            <button class="menu-btn difficulty-btn" data-level="hard">Сложная</button>
+        </div>
+
+        <!-- Расстановка кораблей -->
+        <div id="setup" class="hidden">
+            <h2>Расставь свои корабли</h2>
+            <div id="player-board" class="board"></div>
+            <button id="start-game" class="menu-btn">Начать игру</button>
+        </div>
+
+        <!-- Игровое поле -->
+        <div id="game" class="hidden">
+            <h2 id="game-title"></h2>
+            <div class="boards-container">
+                <div>
+                    <h3>Твоё поле</h3>
+                    <div id="player-game-board" class="board"></div>
+                </div>
+                <div>
+                    <h3>Поле противника</h3>
+                    <div id="enemy-board" class="board"></div>
+                </div>
+            </div>
+            <p id="status"></p>
+        </div>
+    </div>
+
+    <script>
+        const btnBot = document.getElementById('btn-bot');
+        const btnPlayer = document.getElementById('btn-player');
+        const menu = document.getElementById('menu');
+        const difficulty = document.getElementById('difficulty');
+        const setup = document.getElementById('setup');
+        const startGameBtn = document.getElementById('start-game');
+        const playerBoardDiv = document.getElementById('player-board');
+        const gameDiv = document.getElementById('game');
+        const playerGameBoardDiv = document.getElementById('player-game-board');
+        const enemyBoardDiv = document.getElementById('enemy-board');
+        const statusText = document.getElementById('status');
+        const gameTitle = document.getElementById('game-title');
+
+        let mode = null;
+        let difficultyLevel = null;
+        let playerBoard = [];
+        let enemyBoard = [];
+
+        // Генерация пустого поля 10x10
+        function createBoardArray() {
+            return Array(10).fill(null).map(()=>Array(10).fill(null));
+        }
+
+        // Отрисовка поля
+        function renderBoard(board, container, clickable=false, clickHandler=null) {
+            container.innerHTML = '';
+            for(let i=0;i<10;i++){
+                for(let j=0;j<10;j++){
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.x = i;
+                    cell.dataset.y = j;
+                    if(board[i][j] === 'ship') cell.classList.add('ship');
+                    if(clickable && clickHandler) {
+                        cell.addEventListener('click', ()=>clickHandler(i,j,cell));
+                    }
+                    container.appendChild(cell);
+                }
+            }
+        }
+
+        // Расстановка кораблей игрока мышкой
+        function setupPlayerBoard() {
+            playerBoard = createBoardArray();
+            renderBoard(playerBoard, playerBoardDiv, true, (x,y,cell)=>{
+                if(playerBoard[x][y] === 'ship') {
+                    playerBoard[x][y] = null;
+                    cell.classList.remove('ship');
+                } else {
+                    playerBoard[x][y] = 'ship';
+                    cell.classList.add('ship');
+                }
+            });
+        }
+
+        // Генерация случайного поля для врага
+        function setupEnemyBoard() {
+            enemyBoard = createBoardArray();
+            for(let k=0;k<15;k++){ // простая генерация 15 клеток с кораблями
+                let i=Math.floor(Math.random()*10);
+                let j=Math.floor(Math.random()*10);
+                enemyBoard[i][j]='ship';
+            }
+        }
+
+        function startGame() {
+            setup.classList.add('hidden');
+            gameDiv.classList.remove('hidden');
+            gameTitle.textContent = mode === 'bot' ? `Против Бота (${difficultyLevel})` : 'Против Игрока';
+            renderBoard(playerBoard, playerGameBoardDiv);
+            renderBoard(enemyBoard, enemyBoardDiv, true, playerMove);
+            statusText.textContent = "Ваш ход!";
+        }
+
+        function playerMove(x,y,cell) {
+            if(enemyBoard[x][y] === 'ship') {
+                enemyBoard[x][y] = 'hit';
+                cell.classList.add('hit');
+                statusText.textContent = "Попадание!";
+            } else {
+                enemyBoard[x][y] = 'miss';
+                cell.classList.add('miss');
+                statusText.textContent = "Мимо!";
+            }
+            // Можно добавить логику хода бота и завершения игры
+        }
+
+        // Кнопки меню
+        btnBot.addEventListener('click', ()=>{
+            menu.classList.add('hidden');
+            difficulty.classList.remove('hidden');
+            mode='bot';
+        });
+
+        btnPlayer.addEventListener('click', ()=>{
+            menu.classList.add('hidden');
+            setup.classList.remove('hidden');
+            mode='player';
+            setupPlayerBoard();
+        });
+
+        document.querySelectorAll('.difficulty-btn').forEach(btn=>{
+            btn.addEventListener('click', ()=>{
+                difficultyLevel = btn.dataset.level;
+                difficulty.classList.add('hidden');
+                setup.classList.remove('hidden');
+                setupPlayerBoard();
+            });
+        });
+
+        startGameBtn.addEventListener('click', ()=>{
+            setupEnemyBoard();
+            startGame();
+        });
+    </script>
 </body>
 </html>
