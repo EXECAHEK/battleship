@@ -16,9 +16,9 @@ body {
 }
 
 #app {
-    max-width: 800px;
+    max-width: 850px;
     margin: 20px auto;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.7);
     padding: 20px;
     border-radius: 15px;
     box-shadow: 0 0 20px rgba(0,0,0,0.3);
@@ -47,31 +47,33 @@ h1, h2, h3 { margin: 10px 0; }
 .board-container {
     display: inline-block;
     position: relative;
-    padding-left: 30px;  /* Отступ слева для букв */
-    padding-top: 30px;   /* Отступ сверху для цифр */
+    padding-left: 30px;  /* место для букв */
+    padding-top: 30px;   /* место для цифр */
 }
 
 .board {
     display: grid;
-    grid-template-columns: repeat(10, 30px);
-    grid-template-rows: repeat(10, 30px);
+    grid-template-columns: repeat(10, 40px);
+    grid-template-rows: repeat(10, 40px);
     gap: 2px;
     margin: 10px 0;
 }
 
 .cell {
-    width: 30px;
-    height: 30px;
+    width: 40px;
+    height: 40px;
     background-color: #1e2f1f;
     border: 1px solid #555;
     cursor: pointer;
-    transition: background 0.3s;
+    transition: all 0.3s;
     position: relative;
+    background-size: cover;
+    background-position: center;
 }
 
-.cell.ship { background-color: #4caf50; }
-.cell.hit { background-color: red; }
-.cell.miss { background-color: gray; }
+.cell.ship { background-image: url('https://i.ibb.co/1mJ3y9R/ship.png'); }
+.cell.hit { background-image: url('https://i.ibb.co/7W2Vv5s/hit.png'); }
+.cell.miss { background-image: url('https://i.ibb.co/yfN3Jz5/miss.png'); }
 
 .label-row, .label-col {
     position: absolute;
@@ -82,19 +84,19 @@ h1, h2, h3 { margin: 10px 0; }
 }
 
 .label-row { left: -25px; width: 25px; text-align: right; }
-.label-col { top: -25px; width: 30px; text-align: center; }
+.label-col { top: -25px; width: 40px; text-align: center; }
 
 #status { font-size: 1.2rem; margin-top: 10px; }
 
 /* Конфетти */
 .confetti-piece {
     position: fixed;
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
     background-color: yellow;
     z-index: 9999;
     pointer-events: none;
-    animation: fall 2s linear forwards;
+    animation: fall 4s linear forwards;
 }
 @keyframes fall {
     0% { transform: translateY(0) rotate(0deg); opacity: 1; }
@@ -107,15 +109,31 @@ h1, h2, h3 { margin: 10px 0; }
     width: 100vw;
     height: 100vh;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     font-size: 4rem;
     font-weight: bold;
     z-index: 10000;
-    pointer-events: none;
+    pointer-events: all;
+    background: rgba(0,0,0,0.5);
+    color: gold;
 }
-#overlay.win { color: gold; }
-#overlay.lose { color: red; background: rgba(0,0,0,0.5); }
+
+#overlay.lose { color: red; }
+#overlay button {
+    margin-top: 20px;
+    padding: 10px 30px;
+    font-size: 1.5rem;
+    border-radius: 10px;
+    border: none;
+    background-color: #4caf50;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+#overlay button:hover { background-color: #45a049; }
+
 </style>
 </head>
 <body>
@@ -156,7 +174,10 @@ h1, h2, h3 { margin: 10px 0; }
     <p id="status"></p>
 </div>
 
-<div id="overlay" class="hidden"></div>
+<div id="overlay" class="hidden">
+    <div id="overlay-text"></div>
+    <button id="restart-btn" class="hidden">Перезапустить</button>
+</div>
 </div>
 
 <script>
@@ -172,6 +193,8 @@ const enemyBoardDiv = document.getElementById('enemy-board');
 const statusText = document.getElementById('status');
 const gameTitle = document.getElementById('game-title');
 const overlay = document.getElementById('overlay');
+const overlayText = document.getElementById('overlay-text');
+const restartBtn = document.getElementById('restart-btn');
 
 let difficultyLevel = null;
 let playerBoard = [];
@@ -192,12 +215,12 @@ function addLabels(container){
     for(let i=0;i<10;i++){
         const labelRow = document.createElement('div');
         labelRow.className='label-row';
-        labelRow.style.top=i*32+'px';
+        labelRow.style.top=i*42+'px';
         labelRow.textContent=letters[i];
         container.appendChild(labelRow);
         const labelCol = document.createElement('div');
         labelCol.className='label-col';
-        labelCol.style.left=i*32+'px';
+        labelCol.style.left=i*42+'px';
         labelCol.textContent=i+1;
         container.appendChild(labelCol);
     }
@@ -298,19 +321,32 @@ function botTurn(){
 }
 
 // Победа и поражение
-function showWin(){ overlay.className='win'; overlay.textContent='ПОБЕДА!'; overlay.classList.remove('hidden'); launchConfetti(); }
-function showLose(){ overlay.className='lose'; overlay.textContent='ПОРАЖЕНИЕ!'; overlay.classList.remove('hidden'); document.body.style.background='linear-gradient(to right, #800000, #ff0000)'; }
+function showWin(){
+    overlay.className='win';
+    overlayText.textContent='ПОБЕДА!';
+    overlay.classList.remove('hidden');
+    restartBtn.classList.remove('hidden');
+    launchConfetti(200,6);  // больше конфетти и дольше
+}
+function showLose(){
+    overlay.className='lose';
+    overlayText.textContent='ПОРАЖЕНИЕ!';
+    overlay.classList.remove('hidden');
+    restartBtn.classList.remove('hidden');
+    document.body.style.background='linear-gradient(to right, #800000, #ff0000)';
+    launchConfetti(100,4);
+}
 
 // Конфетти
-function launchConfetti(){
-    for(let i=0;i<100;i++){
+function launchConfetti(count=100, duration=4){
+    for(let i=0;i<count;i++){
         const confetti=document.createElement('div');
         confetti.classList.add('confetti-piece');
         confetti.style.left=Math.random()*100+'vw';
         confetti.style.backgroundColor=`hsl(${Math.random()*360},100%,50%)`;
-        confetti.style.animationDuration=2+Math.random()*2+'s';
+        confetti.style.animationDuration=duration+Math.random()*2+'s';
         document.body.appendChild(confetti);
-        setTimeout(()=>confetti.remove(),4000);
+        setTimeout(()=>confetti.remove(),(duration+2)*1000);
     }
 }
 
@@ -331,6 +367,10 @@ startGameBtn.addEventListener('click', ()=>{
     if(shipCount<10){ alert(`Расставьте все корабли!`); return; }
     setupEnemyBoard();
     startGame();
+});
+
+restartBtn.addEventListener('click', ()=>{
+    location.reload();
 });
 </script>
 </body>
