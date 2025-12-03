@@ -12,15 +12,17 @@ body {
     text-align: center;
     margin: 0;
     padding: 0;
+    overflow-x: hidden;
 }
 
 #app {
-    max-width: 700px;
+    max-width: 750px;
     margin: 20px auto;
     background: rgba(0, 0, 0, 0.6);
     padding: 20px;
     border-radius: 15px;
     box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    position: relative;
 }
 
 h1, h2, h3 { margin: 10px 0; }
@@ -42,13 +44,17 @@ h1, h2, h3 { margin: 10px 0; }
 .menu-btn:hover { background-color: #45a049; }
 .hidden { display: none; }
 
+.board-container {
+    display: inline-block;
+    position: relative;
+}
+
 .board {
     display: grid;
     grid-template-columns: repeat(10, 30px);
     grid-template-rows: repeat(10, 30px);
     gap: 2px;
-    justify-content: center;
-    margin: 20px auto;
+    margin: 10px 0;
 }
 
 .cell {
@@ -58,21 +64,55 @@ h1, h2, h3 { margin: 10px 0; }
     border: 1px solid #555;
     cursor: pointer;
     transition: background 0.3s;
+    position: relative;
 }
 
 .cell.ship { background-color: #4caf50; }
 .cell.hit { background-color: red; }
 .cell.miss { background-color: gray; }
 
-.win-animation {
-    animation: winShake 0.5s infinite alternate;
-}
-@keyframes winShake {
-    0% { transform: rotate(-5deg); }
-    100% { transform: rotate(5deg); }
+.label-row, .label-col {
+    position: absolute;
+    color: #fff;
+    font-weight: bold;
+    user-select: none;
 }
 
+.label-row { left: -20px; width: 20px; text-align: right; }
+.label-col { top: -20px; width: 30px; text-align: center; }
+
 #status { font-size: 1.2rem; margin-top: 10px; }
+
+/* Конфетти */
+.confetti-piece {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    background-color: yellow;
+    z-index: 9999;
+    pointer-events: none;
+    animation: fall 2s linear forwards;
+}
+@keyframes fall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+}
+
+#overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+    font-weight: bold;
+    z-index: 10000;
+    pointer-events: none;
+}
+#overlay.win { color: gold; }
+#overlay.lose { color: red; background: rgba(0,0,0,0.5); }
 </style>
 </head>
 <body>
@@ -81,7 +121,6 @@ h1, h2, h3 { margin: 10px 0; }
 
 <div id="menu">
     <button class="menu-btn" id="btn-bot">Против Бота</button>
-    <!-- <button class="menu-btn" id="btn-player">Против Игрока</button> -->
 </div>
 
 <div id="difficulty" class="hidden">
@@ -93,29 +132,32 @@ h1, h2, h3 { margin: 10px 0; }
 
 <div id="setup" class="hidden">
     <h2>Расставь свои корабли (5)</h2>
-    <div id="player-board" class="board"></div>
+    <div class="board-container" id="player-board-container">
+        <div id="player-board" class="board"></div>
+    </div>
     <button id="start-game" class="menu-btn">Начать игру</button>
 </div>
 
 <div id="game" class="hidden">
     <h2 id="game-title"></h2>
-    <div class="boards-container">
-        <div>
+    <div style="display:flex; justify-content:space-around; flex-wrap:wrap;">
+        <div class="board-container">
             <h3>Твоё поле</h3>
             <div id="player-game-board" class="board"></div>
         </div>
-        <div>
+        <div class="board-container">
             <h3>Поле противника</h3>
             <div id="enemy-board" class="board"></div>
         </div>
     </div>
     <p id="status"></p>
 </div>
+
+<div id="overlay" class="hidden"></div>
 </div>
 
 <script>
 const btnBot = document.getElementById('btn-bot');
-// const btnPlayer = document.getElementById('btn-player');
 const menu = document.getElementById('menu');
 const difficulty = document.getElementById('difficulty');
 const setup = document.getElementById('setup');
@@ -126,28 +168,50 @@ const playerGameBoardDiv = document.getElementById('player-game-board');
 const enemyBoardDiv = document.getElementById('enemy-board');
 const statusText = document.getElementById('status');
 const gameTitle = document.getElementById('game-title');
+const overlay = document.getElementById('overlay');
 
-let mode = 'bot';
 let difficultyLevel = null;
 let playerBoard = [];
 let enemyBoard = [];
 const maxShips = 5;
+const letters = ['A','B','C','D','E','F','G','H','I','J'];
 
 // Создание пустого поля
 function createBoardArray() { return Array(10).fill(null).map(()=>Array(10).fill(null)); }
 
+// Подписи
+function addLabels(container){
+    // строки (буквы)
+    for(let i=0;i<10;i++){
+        const label = document.createElement('div');
+        label.className='label-row';
+        label.style.top=i*32+'px';
+        label.textContent = letters[i];
+        container.appendChild(label);
+    }
+    // столбцы (цифры)
+    for(let j=0;j<10;j++){
+        const label = document.createElement('div');
+        label.className='label-col';
+        label.style.left=j*32+'px';
+        label.textContent = j+1;
+        container.appendChild(label);
+    }
+}
+
 // Отрисовка поля
-function renderBoard(board, container, clickable=false, clickHandler=null, hideShips=false) {
-    container.innerHTML = '';
+function renderBoard(board, container, clickable=false, clickHandler=null, hideShips=false){
+    container.innerHTML='';
+    addLabels(container);
     for(let i=0;i<10;i++){
         for(let j=0;j<10;j++){
-            const cell = document.createElement('div');
+            const cell=document.createElement('div');
             cell.classList.add('cell');
-            cell.dataset.x = i;
-            cell.dataset.y = j;
-            if(board[i][j] === 'ship' && !hideShips) cell.classList.add('ship');
-            if(board[i][j] === 'hit') cell.classList.add('hit');
-            if(board[i][j] === 'miss') cell.classList.add('miss');
+            cell.dataset.x=i;
+            cell.dataset.y=j;
+            if(board[i][j]==='ship' && !hideShips) cell.classList.add('ship');
+            if(board[i][j]==='hit') cell.classList.add('hit');
+            if(board[i][j]==='miss') cell.classList.add('miss');
             if(clickable && clickHandler) cell.addEventListener('click', ()=>clickHandler(i,j,cell));
             container.appendChild(cell);
         }
@@ -155,106 +219,83 @@ function renderBoard(board, container, clickable=false, clickHandler=null, hideS
 }
 
 // Расстановка игрока
-function setupPlayerBoard() {
-    playerBoard = createBoardArray();
-    let placedShips = 0;
-    renderBoard(playerBoard, playerBoardDiv, true, (x,y,cell)=>{
-        if(playerBoard[x][y] === 'ship') {
-            playerBoard[x][y] = null;
-            cell.classList.remove('ship');
-            placedShips--;
-        } else if(placedShips < maxShips) {
-            playerBoard[x][y] = 'ship';
-            cell.classList.add('ship');
-            placedShips++;
-        }
+function setupPlayerBoard(){
+    playerBoard=createBoardArray();
+    let placedShips=0;
+    renderBoard(playerBoard, playerBoardDiv,true,(x,y,cell)=>{
+        if(playerBoard[x][y]==='ship'){ playerBoard[x][y]=null; cell.classList.remove('ship'); placedShips--; }
+        else if(placedShips<maxShips){ playerBoard[x][y]='ship'; cell.classList.add('ship'); placedShips++; }
     });
 }
 
-// Генерация поля врага
-function setupEnemyBoard() {
-    enemyBoard = createBoardArray();
-    let shipsPlaced = 0;
-    while(shipsPlaced < maxShips){
+// Поле врага
+function setupEnemyBoard(){
+    enemyBoard=createBoardArray();
+    let shipsPlaced=0;
+    while(shipsPlaced<maxShips){
         let i=Math.floor(Math.random()*10);
         let j=Math.floor(Math.random()*10);
-        if(enemyBoard[i][j] !== 'ship'){
-            enemyBoard[i][j]='ship';
-            shipsPlaced++;
-        }
+        if(enemyBoard[i][j]!=='ship'){ enemyBoard[i][j]='ship'; shipsPlaced++; }
     }
 }
 
-// Проверка победы
-function checkWin(board) {
-    for(let i=0;i<10;i++){
-        for(let j=0;j<10;j++){
-            if(board[i][j]==='ship') return false;
-        }
-    }
-    return true;
-}
+function checkWin(board){ for(let i=0;i<10;i++) for(let j=0;j<10;j++) if(board[i][j]==='ship') return false; return true; }
 
-// Игровая логика
-function startGame() {
+function startGame(){
     setup.classList.add('hidden');
     gameDiv.classList.remove('hidden');
-    gameTitle.textContent = `Против Бота (${difficultyLevel})`;
+    gameTitle.textContent=`Против Бота (${difficultyLevel})`;
     renderBoard(playerBoard, playerGameBoardDiv);
-    renderBoard(enemyBoard, enemyBoardDiv, true, playerMove, true);
-    statusText.textContent = "Ваш ход!";
+    renderBoard(enemyBoard, enemyBoardDiv,true,playerMove,true);
+    statusText.textContent="Ваш ход!";
 }
 
 function playerMove(x,y,cell){
     if(enemyBoard[x][y]==='hit'||enemyBoard[x][y]==='miss') return;
-    if(enemyBoard[x][y]==='ship'){
-        enemyBoard[x][y]='hit';
-        cell.classList.add('hit');
-        statusText.textContent='Попадание!';
-    } else {
-        enemyBoard[x][y]='miss';
-        cell.classList.add('miss');
-        statusText.textContent='Мимо!';
-    }
-    if(checkWin(enemyBoard)){
-        statusText.textContent='Вы победили!';
-        gameDiv.classList.add('win-animation');
-        return;
-    }
-    setTimeout(botMove, 500);
+    let hit=false;
+    if(enemyBoard[x][y]==='ship'){ enemyBoard[x][y]='hit'; cell.classList.add('hit'); statusText.textContent='Попадание!'; hit=true; }
+    else { enemyBoard[x][y]='miss'; cell.classList.add('miss'); statusText.textContent='Мимо!'; }
+    if(checkWin(enemyBoard)){ showWin(); return; }
+    if(!hit) setTimeout(botTurn,500);
 }
 
-function botMove(){
-    let x,y;
+function botTurn(){
+    let x,y,hit;
     do{
         x=Math.floor(Math.random()*10);
         y=Math.floor(Math.random()*10);
-    }while(playerBoard[x][y]==='hit'||playerBoard[x][y]==='miss');
-    let cell = playerGameBoardDiv.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
-    if(playerBoard[x][y]==='ship'){
-        playerBoard[x][y]='hit';
-        cell.classList.add('hit');
-        statusText.textContent='Бот попал!';
-    } else {
-        playerBoard[x][y]='miss';
-        cell.classList.add('miss');
-        statusText.textContent='Бот промахнулся!';
-    }
-    if(checkWin(playerBoard)){
-        statusText.textContent='Вы проиграли!';
-        gameDiv.classList.add('win-animation');
+        if(playerBoard[x][y]==='hit'||playerBoard[x][y]==='miss') continue;
+        let cell=playerGameBoardDiv.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
+        if(playerBoard[x][y]==='ship'){ playerBoard[x][y]='hit'; cell.classList.add('hit'); statusText.textContent='Бот попал!'; hit=true; }
+        else { playerBoard[x][y]='miss'; cell.classList.add('miss'); statusText.textContent='Бот промахнулся!'; hit=false; }
+        if(checkWin(playerBoard)){ showLose(); return; }
+    } while(hit);
+}
+
+// Победа
+function showWin(){ overlay.className='win'; overlay.textContent='ПОБЕДА!'; overlay.classList.remove('hidden'); launchConfetti(); }
+// Поражение
+function showLose(){ overlay.className='lose'; overlay.textContent='ПОРАЖЕНИЕ!'; overlay.classList.remove('hidden'); document.body.style.background='linear-gradient(to right, #800000, #ff0000)'; }
+
+// Конфетти
+function launchConfetti(){
+    for(let i=0;i<100;i++){
+        const confetti=document.createElement('div');
+        confetti.classList.add('confetti-piece');
+        confetti.style.left=Math.random()*100+'vw';
+        confetti.style.backgroundColor=`hsl(${Math.random()*360},100%,50%)`;
+        confetti.style.animationDuration=2+Math.random()*2+'s';
+        document.body.appendChild(confetti);
+        setTimeout(()=>confetti.remove(),4000);
     }
 }
 
-// Меню и кнопки
-btnBot.addEventListener('click', ()=>{
-    menu.classList.add('hidden');
-    difficulty.classList.remove('hidden');
-});
+// Кнопки
+btnBot.addEventListener('click', ()=>{ menu.classList.add('hidden'); difficulty.classList.remove('hidden'); });
 
 document.querySelectorAll('.difficulty-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-        difficultyLevel = btn.dataset.level;
+        difficultyLevel=btn.dataset.level;
         difficulty.classList.add('hidden');
         setup.classList.remove('hidden');
         setupPlayerBoard();
@@ -262,11 +303,8 @@ document.querySelectorAll('.difficulty-btn').forEach(btn=>{
 });
 
 startGameBtn.addEventListener('click', ()=>{
-    let shipCount = playerBoard.flat().filter(c=>c==='ship').length;
-    if(shipCount<maxShips){
-        alert(`Расставьте все ${maxShips} кораблей!`);
-        return;
-    }
+    let shipCount=playerBoard.flat().filter(c=>c==='ship').length;
+    if(shipCount<maxShips){ alert(`Расставьте все ${maxShips} кораблей!`); return; }
     setupEnemyBoard();
     startGame();
 });
