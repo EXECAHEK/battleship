@@ -2,104 +2,95 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>Морской бой — мобильная версия</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Морской бой — моб (фикс)</title>
 <style>
-  :root{
-    --cell:40px;            /* клетка = 40px (твой выбор) */
-    --label-font:16px;      /* размер шрифта для подписей */
-    --label-offset:8px;     /* отступ для подписей */
-    --ship-scale:0.9;       /* корабль 90% от ширины клетки */
-    --accent:#1fb6ff;
-    --bg:#061827;
-    --panel:#072b34;
-    --muted:#bcd3eb;
-    --miss-gray:#6b6f76;
-  }
+:root{
+  --cell:30px;            /* теперь 30px */
+  --label-font:16px;
+  --label-offset:12px;    /* ты просил 12px */
+  --ship-scale:0.9;       /* 90% */
+  --accent:#1fb6ff;
+  --bg:#061827;
+  --muted:#bcd3eb;
+  --miss-gray:#6b6f76;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:linear-gradient(180deg,#021018,#052533);font-family:Inter,Segoe UI,Arial;color:#eaf6ff;-webkit-tap-highlight-color:transparent}
+.app{max-width:420px;margin:0 auto;padding-bottom:120px}
+.header{padding:12px;display:flex;justify-content:space-between;align-items:center}
+.title{font-size:18px;margin:0}
+.hint{font-size:13px;color:var(--muted);margin-top:4px}
 
-  html,body{height:100%;margin:0;background:linear-gradient(180deg,#021018,#052533);font-family:Inter,Segoe UI,Arial;color:#eaf6ff;-webkit-tap-highlight-color:transparent}
-  .app{max-width:420px;margin:0 auto;padding-bottom:110px} /* bottom padding for panel */
-  header{padding:12px;display:flex;justify-content:space-between;align-items:center}
-  h1{font-size:18px;margin:0}
-  .hint{font-size:13px;color:var(--muted);margin-top:4px}
+/* board wrap with top labels */
+.board-wrap{width: calc(var(--cell) * 10); margin:0 auto; position:relative; padding-top: calc(var(--label-offset) + var(--label-font)); }
 
-  /* board wrapper: includes top labels */
-  .board-wrap{width: calc(var(--cell)*10); margin:0 auto; position:relative; padding-top: calc(var(--label-offset) + var(--label-font)); }
-  .coords-top{ position:absolute; left:0; top: calc(var(--label-offset)); width: calc(var(--cell)*10); display:grid; grid-template-columns: repeat(10, var(--cell)); pointer-events:none; color:var(--muted); font-weight:700; font-size:var(--label-font); text-align:center; }
-  .coords-left{ display:none; } /* we keep top labels only per твоего выбора */
+/* top labels row */
+.coords-top{ position:absolute; left:0; top:calc(var(--label-offset)); width:calc(var(--cell) * 10); display:grid; grid-template-columns: repeat(10, var(--cell)); pointer-events:none; color:var(--muted); font-weight:700; font-size:var(--label-font); text-align:center; z-index:5; }
 
-  .board{ width: calc(var(--cell)*10); height: calc(var(--cell)*10); display:grid; grid-template-columns: repeat(10, var(--cell)); grid-template-rows: repeat(10, var(--cell)); gap:2px; background:linear-gradient(180deg,#083241,#042e2a); border-radius:8px; overflow:visible; box-shadow:0 8px 20px rgba(0,0,0,0.6); margin:0 auto; position:relative; }
+/* board */
+.board{ width: calc(var(--cell) * 10); height: calc(var(--cell) * 10); display:grid; grid-template-columns: repeat(10, var(--cell)); grid-template-rows: repeat(10, var(--cell)); gap:2px; background:linear-gradient(180deg,#083241,#042e2a); border-radius:8px; overflow:visible; box-shadow:0 8px 20px rgba(0,0,0,0.6); margin:0 auto; position:relative; z-index:1; }
 
-  .cell{ width:var(--cell); height:var(--cell); box-sizing:border-box; background:linear-gradient(180deg,#08464a,#053534); border-radius:6px; border:1px solid rgba(255,255,255,0.03); position:relative; touch-action:none; }
-  .cell.valid{ box-shadow:0 0 0 3px rgba(0,200,0,0.14) inset; }
-  .cell.invalid{ box-shadow:0 0 0 3px rgba(255,0,0,0.12) inset; }
-  .cell.occupied{ background-color:transparent; }
+.cell{ width:var(--cell); height:var(--cell); background:linear-gradient(180deg,#09464a,#053738); border-radius:6px; border:1px solid rgba(255,255,255,0.03); position:relative; touch-action:none; }
+.cell.valid{ box-shadow:0 0 0 3px rgba(0,200,0,0.14) inset; }
+.cell.invalid{ box-shadow:0 0 0 3px rgba(255,0,0,0.12) inset; }
+.cell.occupied{ background-color:transparent; }
 
-  /* placed ship absolute element inside board-wrap */
-  .placed-ship{ position:absolute; pointer-events:none; background-repeat:no-repeat; background-position:center; background-size:contain; transform-origin:left top; z-index:20; }
+/* placed ship element (we set width/height in JS) */
+.placed-ship{ position:absolute; pointer-events:none; background-repeat:no-repeat; background-position:center; background-size:100% 100%; transform-origin:left top; z-index:20; }
 
-  /* hits / misses */
-  .cell.miss{ background: var(--miss-gray) !important; }
-  .cell .hit-svg{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:30; }
+/* hit/miss */
+.cell.miss{ background: var(--miss-gray) !important; }
+.hit-svg{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:30; }
 
-  /* bottom mobile panel */
-  .panel-bottom{ position:fixed; left:0; right:0; bottom:0; background:linear-gradient(180deg, rgba(0,0,0,0.3), rgba(0,0,0,0.6)); padding:10px; display:flex; flex-direction:column; gap:8px; align-items:flex-start; z-index:50; box-shadow:0 -6px 30px rgba(0,0,0,0.6); }
-  .panel-toprow{ width:100%; display:flex; justify-content:space-between; align-items:center; gap:8px; }
-  .panel-title{ font-size:14px; color:var(--muted) }
-  .controls{ display:flex; gap:8px; align-items:center; }
-  button{ padding:8px 12px; border-radius:8px; border:0; background:var(--accent); color:#021; font-weight:700; font-size:14px; }
-  button.ghost{ background:transparent; color:#cfeeff; border:1px solid rgba(255,255,255,0.06); }
-  .aggregates{ width:100%; display:flex; gap:8px; overflow:auto; padding-bottom:6px; }
+/* bottom panel */
+.panel-bottom{ position:fixed; left:0; right:0; bottom:0; background:linear-gradient(180deg, rgba(0,0,0,0.32), rgba(0,0,0,0.6)); padding:10px; display:flex; flex-direction:column; gap:8px; z-index:60; box-shadow:0 -6px 30px rgba(0,0,0,0.5); }
+.panel-row{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.aggregates{ display:flex; gap:8px; overflow:auto; padding-bottom:6px; }
+.agg{ min-width:120px; display:flex; gap:8px; align-items:center; padding:8px; border-radius:10px; background:linear-gradient(90deg,#0e2b31,#092529); cursor:pointer; border:1px solid rgba(255,255,255,0.03); }
+.preview{ width:56px; height:36px; background-size:contain; background-position:center; background-repeat:no-repeat; }
+.meta{ color:#dff6ff; font-size:13px; }
+.count{ color:var(--accent); font-weight:800; margin-left:6px; }
+.controls{ display:flex; gap:8px; align-items:center; }
 
-  .agg{ min-width:120px; display:flex; gap:8px; align-items:center; padding:8px; border-radius:10px; background:linear-gradient(90deg,#0e2b31,#092529); cursor:pointer; border:1px solid rgba(255,255,255,0.03); }
-  .agg .preview{ width:56px; height:36px; background-repeat:no-repeat; background-position:center; background-size:contain; }
-  .agg .meta{ color:#dff6ff; font-size:13px }
-  .agg .count{ color:var(--accent); font-weight:800; margin-left:6px }
+/* rotate float */
+.rotate-float{ position:fixed; display:none; gap:6px; padding:6px; border-radius:8px; background:rgba(0,0,0,0.6); z-index:120; }
+.icon{ width:36px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);color:#dff6ff;font-weight:700; }
 
-  /* rotate float (follows finger) */
-  .rotate-float{ position:fixed; display:none; gap:6px; padding:6px; border-radius:8px; background:rgba(0,0,0,0.6); z-index:80; }
-  .icon{ width:36px; height:34px; display:flex; align-items:center; justify-content:center; border-radius:8px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04); color:#dff6ff; font-weight:700; }
+/* overlay */
+.overlay{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:200; pointer-events:none; opacity:0; transition:opacity .2s; }
+.overlay.show{ pointer-events:all; opacity:1; }
+.box{ background:rgba(0,0,0,0.75); padding:18px; border-radius:12px; text-align:center; color:#fff; width:90%; max-width:420px; }
 
-  /* overlay end */
-  .overlay{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:120; pointer-events:none; opacity:0; transition:opacity .2s; }
-  .overlay.show{ pointer-events:all; opacity:1; }
-  .overlay .box{ background:rgba(0,0,0,0.75); padding:18px; border-radius:12px; text-align:center; color:#fff; width:90%; max-width:420px; }
+/* confetti */
+.confetti-root{ position:fixed; inset:0; pointer-events:none; z-index:190; }
 
-  /* confetti root */
-  .confetti-root{ position:fixed; inset:0; pointer-events:none; z-index:110; }
-
-  @media(max-width:360px){
-    :root{ --cell:36px; }
-  }
+@media(max-width:360px){ :root{ --cell:28px } }
 </style>
 </head>
 <body>
   <div class="app">
-    <header>
+    <header class="header">
       <div>
-        <h1>Морской бой</h1>
-        <div class="hint" id="hint">Выберите корабль внизу и тапните по полю</div>
+        <div class="title">Морской бой</div>
+        <div class="hint" id="hint">Выберите корабль снизу и тапните клетку</div>
       </div>
-      <div>
-        <button class="ghost" id="btnDummy">Главный</button>
-      </div>
+      <div><button id="btnDummy" class="ghost" style="background:transparent;border:0;color:var(--muted)">Главный</button></div>
     </header>
 
-    <main style="display:flex;justify-content:center;">
-      <div class="board-wrap" id="boardWrap" style="margin-bottom:18px;">
-        <div class="coords-top" id="coordsTop" style="height:calc(var(--label-font) + var(--label-offset)); line-height: calc(var(--label-font) + var(--label-offset));"></div>
-
+    <main style="display:flex;justify-content:center">
+      <div class="board-wrap" id="boardWrap">
+        <div class="coords-top" id="coordsTop"></div>
         <div class="board" id="board"></div>
       </div>
     </main>
   </div>
 
-  <!-- bottom panel -->
   <div class="panel-bottom" id="panel">
-    <div class="panel-toprow">
-      <div class="panel-title">Панель кораблей</div>
+    <div class="panel-row">
+      <div style="font-size:14px;color:var(--muted)">Панель кораблей</div>
       <div class="controls">
-        <div class="small" style="color:var(--muted);padding-right:8px">Сложность:</div>
+        <div style="font-size:13px;color:var(--muted);padding-right:6px">Сложность:</div>
         <button class="ghost diff-btn" data-diff="easy">Лёгкая</button>
         <button class="diff-btn" data-diff="medium">Средняя</button>
         <button class="ghost diff-btn" data-diff="hard">Сложная</button>
@@ -108,9 +99,9 @@
 
     <div class="aggregates" id="aggregates"></div>
 
-    <div style="width:100%;display:flex;justify-content:space-between;gap:8px">
+    <div style="display:flex;justify-content:space-between;gap:8px">
       <div style="display:flex;gap:8px">
-        <button id="autoBtn">Авторасстановка</button>
+        <button id="autoBtn">Авто</button>
         <button id="resetBtn" class="ghost">Сброс</button>
       </div>
       <div style="display:flex;gap:8px">
@@ -120,28 +111,24 @@
     </div>
   </div>
 
-  <!-- rotate float -->
-  <div id="rotateFloat" class="rotate-float">
-    <div class="icon" id="rotLeft">⟲</div>
-    <div class="icon" id="rotRight">⟳</div>
-  </div>
-
-  <!-- overlay end -->
+  <div id="rotateFloat" class="rotate-float"><div id="rotLeft" class="icon">⟲</div><div id="rotRight" class="icon">⟳</div></div>
   <div class="overlay" id="endOverlay"><div class="box"><h2 id="endTitle"></h2><p id="endText"></p><div style="margin-top:12px"><button id="replayBtn">Перезапустить</button></div></div></div>
   <div class="confetti-root" id="confettiRoot"></div>
 
 <script>
-/* ====== Конфигурация (из твоих ответов) ====== */
-const CELL = 40; // user selected
-const LABEL_FONT = '16px';
-const LABEL_OFFSET = 8;
-const SHIP_SCALE = 0.9; // 90%
+/* CONFIG */
+const CELL = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cell')) || 30;
+const LABEL_FONT = getComputedStyle(document.documentElement).getPropertyValue('--label-font') || '16px';
+const LABEL_OFFSET = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--label-offset')) || 12;
+const SHIP_SCALE = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ship-scale')) || 0.9;
+
 const SHIP_SPEC = [
   {size:4,count:1,key:'ship1',name:'Линкор'},
   {size:3,count:2,key:'ship2',name:'Крейсер'},
   {size:2,count:3,key:'ship3',name:'Эсминец'},
   {size:1,count:4,key:'ship4',name:'Катер'}
 ];
+
 const IMG = {
   ship1: 'assets/ships/ship1.png',
   ship2: 'assets/ships/ship2.png',
@@ -153,105 +140,89 @@ const IMG = {
   confetti: 'assets/confetti.png'
 };
 
-/* ====== Базовое состояние ====== */
-const boardEl = document.getElementById('board');
+/* STATE */
+const board = document.getElementById('board');
 const coordsTop = document.getElementById('coordsTop');
-const aggregatesEl = document.getElementById('aggregates');
-const hintEl = document.getElementById('hint');
+const aggregates = document.getElementById('aggregates');
+const hint = document.getElementById('hint');
 const rotateFloat = document.getElementById('rotateFloat');
 const startBtn = document.getElementById('startBtn');
 const autoBtn = document.getElementById('autoBtn');
 const resetBtn = document.getElementById('resetBtn');
 
-let cells = []; // DOM cells
-let state = []; // {ship:false,hit:false,miss:false,shipObj:null}
-let pool = {};  // remaining counts by size
-let placedShips = []; // player's placed ships [{id,size,orient,cells,el,sunk}]
-let enemyShips = [];  // enemy ships objects
-let enemyState = [];  // separate enemy state
+let cells = [];
+let state = []; // for player: {ship,hit,miss,shipRef}
+let enemyState = [];
+let pool = {};
+let placedShips = [];
+let enemyShips = [];
 let selectedSize = null;
-let orient = 'h'; // 'h' or 'v'
-let dragInfo = null; // during pointer drag
-let autoLocked = false; // true after auto placement
+let orient = 'h';
+let dragInfo = null;
+let autoLocked = false;
 let gameStarted = false;
 let playerTurn = true;
 let difficulty = 'medium';
 
-/* ====== Инициализация UI ====== */
+/* BUILD labels & grid */
 function buildGrid(){
-  // build top labels (numbers 1..10) as specified (labels сверху)
   coordsTop.innerHTML = '';
-  for(let j=1;j<=10;j++){
-    const d=document.createElement('div');
+  for(let i=1;i<=10;i++){
+    const d = document.createElement('div');
+    d.textContent = i;
     d.style.fontSize = LABEL_FONT;
-    d.style.paddingTop = '0px';
-    d.textContent = j;
     coordsTop.appendChild(d);
   }
-  // build 10x10 cells
-  boardEl.innerHTML = '';
-  cells = [];
-  state = [];
+
+  board.innerHTML = '';
+  cells = []; state = [];
   for(let i=0;i<100;i++){
     const c = document.createElement('div');
     c.className = 'cell';
     c.dataset.index = i;
-    boardEl.appendChild(c);
+    board.appendChild(c);
     cells.push(c);
     state.push({ship:false,hit:false,miss:false,shipRef:null});
   }
-  // attach events
   attachCellEvents();
 }
 
-/* ====== Build pool aggregates (4 types) ====== */
+/* build pool */
 function buildPool(){
-  aggregatesEl.innerHTML = '';
+  aggregates.innerHTML = '';
   pool = {};
   for(const s of SHIP_SPEC) pool[s.size] = s.count;
-
-  for(const s of SHIP_SPEC){
-    renderAggregate(s);
-  }
+  for(const s of SHIP_SPEC) renderAgg(s);
 }
 
-function renderAggregate(spec){
+function renderAgg(spec){
   if(pool[spec.size] <= 0) return;
-  const row = document.createElement('div');
-  row.className = 'agg';
-  row.dataset.size = spec.size;
-  const prev = document.createElement('div'); prev.className = 'preview';
+  const row = document.createElement('div'); row.className='agg'; row.dataset.size = spec.size;
+  const prev = document.createElement('div'); prev.className='preview';
   if(IMG[spec.key]) prev.style.backgroundImage = `url('${IMG[spec.key]}')`;
-  const meta = document.createElement('div'); meta.className = 'meta';
+  const meta = document.createElement('div'); meta.className='meta';
   meta.innerHTML = `<div style="font-weight:700">${spec.name}</div><div class="small">Осталось: <span class="count" id="count-${spec.size}">${pool[spec.size]}</span></div>`;
-  row.appendChild(prev);
-  row.appendChild(meta);
-  aggregatesEl.appendChild(row);
+  row.appendChild(prev); row.appendChild(meta);
+  aggregates.appendChild(row);
 
   row.addEventListener('click', ()=>{
     if(autoLocked) return;
-    // select this size
     selectedSize = spec.size;
-    // visual highlight
     document.querySelectorAll('.agg').forEach(x=>x.style.outline='none');
     row.style.outline = '2px solid rgba(31,182,255,0.45)';
-    setHint(`Выбрано: ${spec.name} (${spec.size}). Тапните клетку для размещения.`);
+    setHint(`Выбрано ${spec.name} (${spec.size}). Тапните по полю.`);
   });
 
-  // drag support for desktop
   row.draggable = true;
   row.addEventListener('dragstart', e=>{
-    if(autoLocked) { e.preventDefault(); return; }
-    dragInfo = {size: spec.size, key: spec.key};
+    if(autoLocked){ e.preventDefault(); return; }
+    dragInfo = {size:spec.size};
     showRotateFloatAt(e.clientX, e.clientY);
   });
-  row.addEventListener('dragend', ()=>{
-    dragInfo = null; hideRotateFloat(); clearHighlights();
-  });
+  row.addEventListener('dragend', ()=>{ dragInfo=null; hideRotateFloat(); clearHighlights(); });
 }
 
-/* ====== Helpers ====== */
-function setHint(t){ hintEl.textContent = t; }
+function setHint(t){ hint.textContent = t; }
 function updateCounts(){
   for(const s of SHIP_SPEC){
     const el = document.getElementById('count-'+s.size);
@@ -259,22 +230,25 @@ function updateCounts(){
     if(pool[s.size] <= 0){
       const row = document.querySelector(`.agg[data-size="${s.size}"]`);
       if(row) row.remove();
-      if(selectedSize === s.size) { selectedSize = null; document.querySelectorAll('.agg').forEach(x=>x.style.outline='none'); }
+      if(selectedSize === s.size) { selectedSize=null; document.querySelectorAll('.agg').forEach(x=>x.style.outline='none'); }
     }
   }
 }
 
-/* ====== Placement rules (no adjacent) ====== */
-function canPlaceAt(st, index, size, orientation){
-  const {r,c} = idxToRC(Number(index));
-  // bounds and overlap
+/* helpers */
+function idxToRC(i){ return {r: Math.floor(i/10), c: i%10}; }
+function rcToIdx(r,c){ return r*10 + c; }
+function isInside(r,c){ return r>=0 && r<10 && c>=0 && c<10; }
+
+/* placement rules: no adjacency */
+function canPlaceAt(arrState, idx, size, orientation){
+  const {r,c} = idxToRC(Number(idx));
   for(let k=0;k<size;k++){
     const rr = r + (orientation==='v'?k:0);
     const cc = c + (orientation==='h'?k:0);
     if(!isInside(rr,cc)) return false;
-    if(st[rcToIdx(rr,cc)].ship) return false;
+    if(arrState[rcToIdx(rr,cc)].ship) return false;
   }
-  // adjacency: one-cell border
   for(let k=0;k<size;k++){
     const rr = r + (orientation==='v'?k:0);
     const cc = c + (orientation==='h'?k:0);
@@ -283,94 +257,102 @@ function canPlaceAt(st, index, size, orientation){
         const nr = rr + dr;
         const nc = cc + dc;
         if(!isInside(nr,nc)) continue;
-        if(st[rcToIdx(nr,nc)].ship) return false;
+        if(arrState[rcToIdx(nr,nc)].ship) return false;
       }
     }
   }
   return true;
 }
 
-function idxToRC(i){ return {r: Math.floor(i/10), c: i%10}; }
-function rcToIdx(r,c){ return r*10 + c; }
-function isInside(r,c){ return r>=0 && r<10 && c>=0 && c<10; }
-
-/* ====== Place ship visually and in state ====== */
-function placeShipAt(index, size, orientation, owner='player', reveal=false){
-  const {r,c} = idxToRC(Number(index));
-  const wrapRect = document.getElementById('boardWrap').getBoundingClientRect();
+/* place ship: compute absolute position relative to board-wrap */
+function placeShipAt(idx, size, orientation, owner='player', reveal=false){
+  const {r,c} = idxToRC(Number(idx));
+  const bwRect = board.getBoundingClientRect();
+  // compute left/top relative to board-wrap container's content (board rect)
   const left = (c * CELL);
-  const top  = (r * CELL) + 0; // top already accounts for coords area via padding in CSS
-  const w = orientation === 'h' ? (size * CELL + (size-1)*2) * SHIP_SCALE : (CELL * SHIP_SCALE);
-  const h = orientation === 'v' ? (size * CELL + (size-1)*2) * SHIP_SCALE : (CELL * SHIP_SCALE);
+  const top  = (r * CELL);
+  // create element
+  const el = document.createElement('div');
+  el.className = 'placed-ship';
+  // set size: stretched to N cells (A — растягиваем)
+  if(orientation === 'h'){
+    el.style.width = (size * CELL * SHIP_SCALE) + 'px';
+    el.style.height = (CELL * SHIP_SCALE) + 'px';
+    el.style.left = left + 'px';
+    el.style.top  = top + 'px';
+    el.style.transform = `translate(${0}px, ${0}px)`;
+  } else {
+    // vertical: we'll rotate; to keep top-left alignment correct, set width/height and rotate by 90deg with transform-origin left top and adjust translate
+    el.style.width = (CELL * SHIP_SCALE) + 'px';
+    el.style.height = (size * CELL * SHIP_SCALE) + 'px';
+    el.style.left = left + 'px';
+    el.style.top  = top + 'px';
+    el.style.transformOrigin = 'left top';
+    el.style.transform = `rotate(90deg) translate(0, -${ (size*CELL*SHIP_SCALE) - (CELL*SHIP_SCALE) }px)`;
+  }
+  // background by size
+  el.style.backgroundImage = `url('${IMG['ship'+size]}')`;
+  // append inside board-wrap so left/top are relative to board element's top-left (absolute within .board)
+  // we append to board (same coordinate space)
+  board.appendChild(el);
 
-  const shipEl = document.createElement('div');
-  shipEl.className = 'placed-ship';
-  shipEl.style.left = (left + 0) + 'px';
-  shipEl.style.top  = (top + 0 + parseInt(getComputedStyle(document.documentElement).getPropertyValue('--label-font')) + LABEL_OFFSET * 0) + 'px';
-  shipEl.style.width = (orientation==='h' ? (size*CELL*SHIP_SCALE) + 'px' : (CELL*SHIP_SCALE)+'px');
-  shipEl.style.height= (orientation==='v' ? (size*CELL*SHIP_SCALE) + 'px' : (CELL*SHIP_SCALE)+'px');
-  shipEl.style.backgroundImage = `url('${IMG['ship'+size]}')`;
-  shipEl.dataset.size = size;
-  shipEl.dataset.orient = orientation;
-  shipEl.dataset.owner = owner;
-  if(orientation === 'v') shipEl.style.transform = 'rotate(90deg) translate(0, -' + ( (size*CELL*SHIP_SCALE) - (CELL*SHIP_SCALE) ) + 'px)'; // rotate pivot fix for vertical
-
-  // add to wrap (position is relative to .board-wrap)
-  document.getElementById('boardWrap').appendChild(shipEl);
-
-  // mark state
+  // mark state arrays
   const cellsArr = [];
   for(let k=0;k<size;k++){
     const rr = r + (orientation==='v'?k:0);
     const cc = c + (orientation==='h'?k:0);
-    const idx = rcToIdx(rr,cc);
-    if(owner==='player'){
-      state[idx].ship = true;
-      state[idx].shipRef = shipEl;
+    const id = rcToIdx(rr,cc);
+    if(owner === 'player'){
+      state[id].ship = true;
+      state[id].shipRef = el;
+      cells[id].classList.add('occupied');
     } else {
-      enemyState[idx].ship = true;
-      enemyState[idx].shipRef = shipEl;
+      enemyState[id].ship = true;
+      enemyState[id].shipRef = el;
     }
-    cellsArr.push(idx);
-    if(owner==='player') cells[idx].classList.add('occupied');
+    cellsArr.push(id);
   }
-
-  const shipObj = {id: Math.random().toString(36).slice(2,9), size, orient:orientation, cells:cellsArr, el:shipEl, owner, sunk:false};
-  if(owner==='player') placedShips.push(shipObj);
-  else enemyShips.push(shipObj);
-
-  if(reveal && owner==='enemy'){
-    shipEl.style.opacity = 1; shipEl.style.filter = '';
-  } else if(owner==='enemy'){
-    shipEl.style.opacity = 0; shipEl.style.filter = 'brightness(0)'; // hidden until sunk
-  }
+  const shipObj = {id: Math.random().toString(36).slice(2,8), size, orient:orientation, cells:cellsArr, el, owner, sunk:false};
+  if(owner === 'player') placedShips.push(shipObj); else enemyShips.push(shipObj);
+  if(owner === 'enemy' && !reveal){ el.style.opacity = 0; el.style.filter = 'brightness(0)'; } // hide enemy
   return shipObj;
 }
 
-/* ====== Highlights and events on cells ====== */
+/* highlight preview */
+function highlightPreview(idx,size,orientation){
+  clearHighlights();
+  const {r,c} = idxToRC(Number(idx));
+  for(let k=0;k<size;k++){
+    const rr = r + (orientation==='v'?k:0);
+    const cc = c + (orientation==='h'?k:0);
+    if(!isInside(rr,cc)) continue;
+    const id = rcToIdx(rr,cc);
+    if(canPlaceAt(state, idx, size, orientation)) cells[id].classList.add('valid'); else cells[id].classList.add('invalid');
+  }
+}
+function clearHighlights(){ cells.forEach(x=>x.classList.remove('valid','invalid')); }
+
+/* attach cell events */
 function attachCellEvents(){
   cells.forEach(cell=>{
-    cell.addEventListener('pointerdown', onCellPointerDown);
-    cell.addEventListener('pointerup', onCellPointerUp);
-    cell.addEventListener('pointermove', onCellPointerMove);
     cell.addEventListener('click', ()=>{
       if(gameStarted){
-        // shooting mode: shoot at enemy
-        playerShootAt(Number(cell.dataset.index));
-      } else {
-        // placement: tap-to-place
-        if(autoLocked) return;
-        if(selectedSize === null) { setHint('Выберите корабль в панели'); return; }
+        // shooting
         const idx = Number(cell.dataset.index);
-        if(!canPlaceAt(state, idx, selectedSize, orient)) { flashInvalid(idx, selectedSize); return; }
+        if(enemyState[idx].hit || enemyState[idx].miss) return;
+        playerShootAt(idx);
+      } else {
+        if(autoLocked) return;
+        if(!selectedSize) { setHint('Выберите корабль внизу'); return; }
+        const idx = Number(cell.dataset.index);
+        if(!canPlaceAt(state, idx, selectedSize, orient)){ flashInvalid(idx, selectedSize); return; }
         placeShipAt(idx, selectedSize, orient, 'player');
-        pool[selectedSize]--;
-        updateCounts();
+        pool[selectedSize]--; updateCounts();
         setHint('Корабль размещён');
         if(Object.values(pool).every(v=>v===0)){ startBtn.disabled=false; setHint('Все корабли размещены — нажмите Старт'); }
       }
     });
-    // dragover support for desktop from aggregate drag
+    /* drag/drop support from aggregates */
     cell.addEventListener('dragover', e=>{
       e.preventDefault();
       const idx = Number(cell.dataset.index);
@@ -385,7 +367,7 @@ function attachCellEvents(){
       if(!dragInfo) return;
       const idx = Number(cell.dataset.index);
       if(autoLocked) return;
-      if(!canPlaceAt(state, idx, dragInfo.size, orient)) { setHint('Нельзя разместить здесь'); return; }
+      if(!canPlaceAt(state, idx, dragInfo.size, orient)){ setHint('Нельзя разместить здесь'); return; }
       placeShipAt(idx, dragInfo.size, orient, 'player');
       pool[dragInfo.size]--; updateCounts();
       dragInfo = null; hideRotateFloat(); clearHighlights();
@@ -394,290 +376,204 @@ function attachCellEvents(){
   });
 }
 
-function highlightPreview(index,size,orientation){
-  clearHighlights();
-  const {r,c} = idxToRC(Number(index));
-  for(let k=0;k<size;k++){
-    const rr = r + (orientation==='v'?k:0);
-    const cc = c + (orientation==='h'?k:0);
-    if(!isInside(rr,cc)) continue;
-    const idx = rcToIdx(rr,cc);
-    if(canPlaceAt(state, index, size, orientation)) cells[idx].classList.add('valid'); else cells[idx].classList.add('invalid');
-  }
-}
-function clearHighlights(){ cells.forEach(c=>c.classList.remove('valid','invalid')); }
-function flashInvalid(index,size){
-  highlightPreview(index,size,orient);
-  setTimeout(clearHighlights,450);
-}
+function flashInvalid(idx,size){ highlightPreview(idx,size,orient); setTimeout(clearHighlights,450); }
 
-/* ====== Drag pointer support for ships drawn from aggregates (touch/desktop unified) ====== */
-let dragPointer = null;
-let dragGhost = null;
-function onCellPointerDown(e){ /* placeholder for future advanced drag; we use tap for mobile placement */ }
-function onCellPointerMove(e){ /* no op */ }
-function onCellPointerUp(e){ /* no op */ }
-
-/* ====== Auto place (player) - locks manual ====== */
+/* AUTO PLACE player */
 function autoPlacePlayer(){
-  // clear existing player ships
-  placedShips.forEach(s=>s.el.remove());
+  // clear player ships
+  placedShips.forEach(s=>s.el && s.el.remove());
   placedShips = [];
-  // reset state cells
   state = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipRef:null}));
   cells.forEach(c=>{ c.className='cell'; });
-
   // reset pool
-  pool = {};
-  for(const s of SHIP_SPEC) pool[s.size] = s.count;
-
-  // place by sizes
-  const sizes=[];
-  for(const s of SHIP_SPEC) for(let k=0;k<s.count;k++) sizes.push(s.size);
+  pool = {}; for(const s of SHIP_SPEC) pool[s.size]=s.count;
+  const sizes=[]; for(const s of SHIP_SPEC) for(let k=0;k<s.count;k++) sizes.push(s.size);
   for(const size of sizes){
-    let placed=false, attempts=0;
-    while(!placed && attempts<2000){
+    let ok=false, attempts=0;
+    while(!ok && attempts<2000){
       attempts++;
-      const orientation = Math.random()<0.5 ? 'h' : 'v';
-      const maxC = orientation==='h' ? (10 - size) : 9;
-      const maxR = orientation==='v' ? (10 - size) : 9;
+      const orientE = Math.random()<0.5?'h':'v';
+      const maxR = orientE==='v' ? 10 - size : 9;
+      const maxC = orientE==='h' ? 10 - size : 9;
       const r = Math.floor(Math.random()*(maxR+1));
       const c = Math.floor(Math.random()*(maxC+1));
       const idx = rcToIdx(r,c);
-      if(canPlaceAt(state, idx, size, orientation)){
-        placeShipAt(idx, size, orientation, 'player');
-        pool[size]--; placed=true;
+      if(canPlaceAt(state, idx, size, orientE)){
+        placeShipAt(idx, size, orientE, 'player');
+        pool[size]--; ok=true;
       }
     }
-    if(!placed) console.warn('auto place failed for size', size);
+    if(!ok) console.warn('auto failed size', size);
   }
-  // rebuild aggregates UI to reflect counts and remove zero rows
-  aggregatesEl.innerHTML='';
-  for(const s of SHIP_SPEC) if(pool[s.size] > 0) renderAggregate(s);
+  // rebuild aggregates
+  aggregates.innerHTML=''; for(const s of SHIP_SPEC) if(pool[s.size]>0) renderAgg(s);
   updateCounts();
   autoLocked = true;
-  startBtn.disabled = false;
-  setHint('Авторасстановка выполнена — нажмите Старт');
+  startBtn.disabled=false;
+  setHint('Авторасстановка выполнена');
 }
 
-/* ====== Enemy placement & state ====== */
+/* ENEMY placement */
 function autoPlaceEnemy(){
-  enemyShips.forEach(s=> { if(s.el) s.el.remove(); });
+  enemyShips.forEach(s=>s.el && s.el.remove());
   enemyShips = [];
   enemyState = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipRef:null}));
-  const sizes=[];
-  for(const s of SHIP_SPEC) for(let k=0;k<s.count;k++) sizes.push(s.size);
+  const sizes=[]; for(const s of SHIP_SPEC) for(let k=0;k<s.count;k++) sizes.push(s.size);
   for(const size of sizes){
-    let placed=false, attempts=0;
-    while(!placed && attempts<2000){
+    let ok=false, attempts=0;
+    while(!ok && attempts<2000){
       attempts++;
-      const orientation = Math.random()<0.5 ? 'h' : 'v';
-      const maxC = orientation==='h' ? (10 - size) : 9;
-      const maxR = orientation==='v' ? (10 - size) : 9;
+      const orientE = Math.random()<0.5?'h':'v';
+      const maxR = orientE==='v' ? 10 - size : 9;
+      const maxC = orientE==='h' ? 10 - size : 9;
       const r = Math.floor(Math.random()*(maxR+1));
       const c = Math.floor(Math.random()*(maxC+1));
       const idx = rcToIdx(r,c);
-      if(canPlaceAt(enemyState, idx, size, orientation)){
-        const shipObj = placeShipAt(idx, size, orientation, 'enemy', false);
+      if(canPlaceAt(enemyState, idx, size, orientE)){
+        const shipObj = placeShipAt(idx, size, orientE, 'enemy', false);
         enemyShips.push(shipObj);
-        placed = true;
+        ok=true;
       }
     }
-    if(!placed) console.warn('enemy place failed', size);
+    if(!ok) console.warn('enemy auto failed', size);
   }
-  // hide enemy visuals until sunk (they were created with opacity 0)
-  enemyShips.forEach(s => { if(s.el){ s.el.style.opacity=0; s.el.style.filter='brightness(0)'; } });
+  // hide enemy visuals already done in placeShipAt for owner==='enemy'
 }
 
-/* ====== Shooting logic ====== */
+/* SHOOTING */
 function playerShootAt(idx){
   if(!gameStarted || !playerTurn) return;
   if(enemyState[idx].hit || enemyState[idx].miss) return;
   if(enemyState[idx].ship){
-    enemyState[idx].hit = true;
-    renderHitAt(cells[idx]);
-    setHint('Попадание! Продолжайте стрелять.');
+    enemyState[idx].hit = true; renderHit(cells[idx]);
+    setHint('Попадание! Ваш ход остаётся.');
     checkSunk(enemyShips, enemyState, 'enemy');
-    if(checkWinEnemy()){ finish(true); }
+    if(checkWinEnemy()) finish(true);
   } else {
-    enemyState[idx].miss = true;
-    renderMissAt(cells[idx]);
-    playerTurn = false;
-    setHint('Мимо. Ходит бот.');
+    enemyState[idx].miss = true; renderMiss(cells[idx]);
+    playerTurn = false; setHint('Мимо. Ходит бот.');
     setTimeout(botMove, 600);
   }
 }
 
-function renderHitAt(cellEl){
-  cellEl.classList.remove('miss');
+function renderHit(cell){
   const svgns = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(svgns,'svg');
-  svg.setAttribute('viewBox','0 0 48 48');
-  svg.classList.add('hit-svg');
+  const svg = document.createElementNS(svgns,'svg'); svg.setAttribute('viewBox','0 0 48 48'); svg.classList.add('hit-svg');
   const l1 = document.createElementNS(svgns,'line'); l1.setAttribute('x1','6'); l1.setAttribute('y1','6'); l1.setAttribute('x2','42'); l1.setAttribute('y2','42'); l1.setAttribute('stroke','white'); l1.setAttribute('stroke-width','3'); l1.setAttribute('stroke-linecap','round');
   const l2 = document.createElementNS(svgns,'line'); l2.setAttribute('x1','42'); l2.setAttribute('y1','6'); l2.setAttribute('x2','6'); l2.setAttribute('y2','42'); l2.setAttribute('stroke','white'); l2.setAttribute('stroke-width','3'); l2.setAttribute('stroke-linecap','round');
-  svg.appendChild(l1); svg.appendChild(l2);
-  cellEl.appendChild(svg);
+  svg.appendChild(l1); svg.appendChild(l2); cell.appendChild(svg);
 }
 
-function renderMissAt(cellEl){
-  cellEl.classList.add('miss');
-  // optionally show miss image if exists
+function renderMiss(cell){
+  cell.classList.add('miss');
   if(IMG.miss){
     const img = new Image(); img.src = IMG.miss; img.style.position='absolute'; img.style.left=0; img.style.top=0; img.style.width='100%'; img.style.height='100%'; img.style.objectFit='contain';
-    cellEl.appendChild(img);
+    cell.appendChild(img);
   }
 }
 
-/* Bot move */
 function botMove(){
-  // choose an untargeted cell on player field
-  const choices = cells.map((c,i)=>i).filter(i=> !state[i].hit && !state[i].miss && state[i].ship === undefined ? true : true ); // we'll allow selecting any cell not already hit/miss
-  // ensure only untargeted
-  const avail = choices.filter(i=> !state[i].hit && !state[i].miss);
-  if(avail.length === 0) return;
+  const avail = cells.map((c,i)=>i).filter(i=> !state[i].hit && !state[i].miss);
+  if(avail.length===0) return;
   let idx;
-  if(difficulty === 'easy') idx = avail[Math.floor(Math.random()*avail.length)];
-  else if(difficulty === 'hard'){
-    // try near existing hits
+  if(difficulty==='easy') idx = avail[Math.floor(Math.random()*avail.length)];
+  else {
+    // try neighbor of hit
     const hits = state.map((s,i)=> s.hit ? i : -1).filter(x=>x>=0);
-    let found = -1;
+    let found=-1;
     for(const h of hits){
       const {r,c} = idxToRC(h);
-      const neighbours = [[r+1,c],[r-1,c],[r,c+1],[r,c-1]];
-      for(const [nr,nc] of neighbours){
+      const nbs = [[r+1,c],[r-1,c],[r,c+1],[r,c-1]];
+      for(const [nr,nc] of nbs){
         if(isInside(nr,nc)){
-          const idn = rcToIdx(nr,nc);
-          if(!state[idn].hit && !state[idn].miss){ found = idn; break; }
+          const id = rcToIdx(nr,nc);
+          if(!state[id].hit && !state[id].miss){ found=id; break; }
         }
       }
       if(found>=0) break;
     }
     idx = found>=0 ? found : avail[Math.floor(Math.random()*avail.length)];
-  } else idx = avail[Math.floor(Math.random()*avail.length)];
-
+  }
   if(state[idx].ship){
-    state[idx].hit = true;
-    renderHitAt(cells[idx]);
+    state[idx].hit = true; renderHit(cells[idx]);
     setHint('Бот попал! Бот ходит снова.');
-    setTimeout(botMove, 450);
+    setTimeout(botMove, 350);
     if(checkWinPlayer()) finish(false);
   } else {
-    state[idx].miss = true;
-    renderMissAt(cells[idx]);
-    playerTurn = true;
-    setHint('Бот промахнулся. Ваш ход.');
+    state[idx].miss = true; renderMiss(cells[idx]);
+    playerTurn = true; setHint('Бот промахнулся. Ваш ход.');
   }
 }
 
-/* Check sunk ships */
-function checkSunk(shipsList, st, owner){
-  for(const ship of shipsList){
+/* check sunk */
+function checkSunk(list, arrState, owner){
+  for(const ship of list){
     if(ship.sunk) continue;
-    const allHit = ship.cells.every(idx => st[idx].hit);
+    const allHit = ship.cells.every(i => arrState[i].hit);
     if(allHit){
       ship.sunk = true;
-      if(owner === 'enemy'){
-        // reveal enemy ship
-        ship.el.style.opacity = 1; ship.el.style.filter = '';
-      }
+      if(owner==='enemy'){ ship.el.style.opacity = 1; ship.el.style.filter=''; }
     }
   }
 }
 
-/* Check wins */
+/* check wins */
 function checkWinEnemy(){ return !enemyState.some(s=>s.ship && !s.hit); }
 function checkWinPlayer(){ return !state.some(s=>s.ship && !s.hit); }
 
-/* finish */
 function finish(playerWon){
   gameStarted = false;
   const overlay = document.getElementById('endOverlay');
   document.getElementById('endTitle').textContent = playerWon ? 'ПОБЕДА!' : 'ПОРАЖЕНИЕ';
-  document.getElementById('endText').textContent = playerWon ? 'Вы потопили все корабли противника.' : 'Ваши корабли потоплены.';
+  document.getElementById('endText').textContent = playerWon ? 'Вы потопили все корабли.' : 'Ваши корабли потоплены.';
   overlay.classList.add('show');
-  launchConfetti(playerWon?200:80, playerWon?6000:3500);
+  launchConfetti(playerWon?200:80, playerWon?6000:3000);
 }
 
-/* ====== Utilities: confetti, rotate float etc. ====== */
-function launchConfetti(count=80, duration=4000){
+/* confetti */
+function launchConfetti(count=80,dur=4000){
   const root = document.getElementById('confettiRoot'); root.innerHTML='';
-  const colors = ['#ff4d4f','#ffd666','#69c0ff','#95de64','#ff85c0','#ffd591'];
+  const colors=['#ff4d4f','#ffd666','#69c0ff','#95de64','#ff85c0','#ffd591'];
   for(let i=0;i<count;i++){
-    const d = document.createElement('div'); d.style.position='fixed';
-    d.style.left = Math.random()*100 + 'vw'; d.style.top = (-10 - Math.random()*30) + 'vh';
-    const s = (6 + Math.random()*8) + 'px'; d.style.width = s; d.style.height = s;
-    d.style.background = colors[Math.floor(Math.random()*colors.length)];
-    d.style.opacity = 0.95; d.style.transform = `rotate(${Math.random()*360}deg)`; d.style.borderRadius='2px'; d.style.zIndex=110;
-    root.appendChild(d);
-    const dur = duration + Math.random()*1500;
-    d.animate([{transform:d.style.transform + ' translateY(0)'},{transform:d.style.transform + ' translateY(' + (window.innerHeight + 400) + 'px)'}], {duration:dur, easing:'linear', iterations:1});
-    setTimeout(()=>d.remove(), dur+80);
+    const el=document.createElement('div'); el.style.position='fixed'; el.style.left=Math.random()*100+'vw'; el.style.top=(-10-Math.random()*30)+'vh';
+    const s=(6+Math.random()*8)+'px'; el.style.width=s; el.style.height=s; el.style.background=colors[Math.floor(Math.random()*colors.length)]; el.style.opacity=0.95; el.style.transform=`rotate(${Math.random()*360}deg)`; el.style.borderRadius='2px'; el.style.zIndex=180;
+    root.appendChild(el);
+    const dur2 = dur + Math.random()*1200;
+    el.animate([{transform:el.style.transform+' translateY(0)'},{transform:el.style.transform+' translateY(' + (window.innerHeight+400) + 'px)'}],{duration:dur2,easing:'linear'});
+    setTimeout(()=>el.remove(), dur2+80);
   }
 }
 
-function showRotateFloatAt(x,y){ rotateFloat.style.display='flex'; rotateFloat.style.left = (x+12) + 'px'; rotateFloat.style.top = (y+12) + 'px'; }
+/* rotate float */
+function showRotateFloatAt(x,y){ rotateFloat.style.display='flex'; rotateFloat.style.left=(x+12)+'px'; rotateFloat.style.top=(y+12)+'px'; }
 function hideRotateFloat(){ rotateFloat.style.display='none'; }
 
-/* ====== Event handlers for controls ====== */
-document.getElementById('rotateBtn').addEventListener('click', ()=>{
-  orient = (orient==='h'?'v':'h');
-  setHint('Ориентация: ' + (orient==='h'?'горизонтальная':'вертикальная'));
-});
-document.getElementById('rotLeft').addEventListener('click', ()=>{ orient = (orient==='h'?'v':'h'); setHint('Ориентация: '+orient); });
-document.getElementById('rotRight').addEventListener('click', ()=>{ orient = (orient==='h'?'v':'h'); setHint('Ориентация: '+orient); });
+/* CONTROL handlers */
+document.getElementById('rotateBtn').addEventListener('click', ()=>{ orient = (orient==='h'?'v':'h'); setHint('Ориентация: ' + (orient==='h'?'горизонтальная':'вертикальная')); });
+document.getElementById('rotLeft').addEventListener('click', ()=>{ orient = (orient==='h'?'v':'h'); setHint('Ориентация: ' + orient); });
+document.getElementById('rotRight').addEventListener('click', ()=>{ orient = (orient==='h'?'v':'h'); setHint('Ориентация: ' + orient); });
 
-autoBtn.addEventListener('click', ()=>{ if(gameStarted) return; autoPlacePlayer(); autoPlaceEnemy(); autoLocked=true; setHint('Авторасстановка: готово. Нажмите Старт'); startBtn.disabled=false; });
+autoBtn.addEventListener('click', ()=>{ if(gameStarted) return; autoPlacePlayer(); autoPlaceEnemy(); autoLocked=true; setHint('Авторасстановка готова. Нажмите Старт'); startBtn.disabled=false; });
 resetBtn.addEventListener('click', ()=>{ init(); setHint('Сброшено'); });
+startBtn.addEventListener('click', ()=>{ if(Object.values(pool).some(v=>v>0)){ setHint('Разместите все корабли прежде чем стартовать'); return; } gameStarted=true; playerTurn=true; setHint('Игра началась. Ваш ход.'); autoPlaceEnemy(); startBtn.disabled=true; });
 
-startBtn.addEventListener('click', ()=>{
-  if(Object.values(pool).some(v=>v>0)){ setHint('Разместите все корабли прежде чем стартовать'); return; }
-  gameStarted = true; playerTurn = true; setHint('Игра началась. Ваш ход.'); autoPlaceEnemy(); startBtn.disabled=true;
-});
-
-// difficulty buttons
-document.querySelectorAll('.diff-btn').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    document.querySelectorAll('.diff-btn').forEach(x=>x.classList.remove('btn'));
-    btn.classList.add('btn');
-    difficulty = btn.dataset.diff;
-    setHint('Сложность: '+difficulty);
-  });
-});
-
-// replay overlay
+document.querySelectorAll('.diff-btn').forEach(btn=>{ btn.addEventListener('click', ()=>{ document.querySelectorAll('.diff-btn').forEach(x=>x.classList.remove('btn')); btn.classList.add('btn'); difficulty = btn.dataset.diff; setHint('Сложность: '+difficulty); }); });
 document.getElementById('replayBtn').addEventListener('click', ()=>{ init(); document.getElementById('endOverlay').classList.remove('show'); });
 
-/* ====== Mouse / pointer helpers for aggregate drag preview (desktop) ====== */
-document.addEventListener('pointermove', (e)=>{
-  if(selectedSize || dragInfo) showRotateFloatAt(e.clientX, e.clientY);
-  else hideRotateFloat();
-});
+document.addEventListener('pointermove', (e)=>{ if(selectedSize || dragInfo) showRotateFloatAt(e.clientX, e.clientY); else hideRotateFloat(); });
 
-/* ====== Init all ====== */
+/* INIT */
 function init(){
-  // reset visuals
   document.getElementById('endOverlay').classList.remove('show');
-  buildGrid();
-  buildPool();
-  placedShips.forEach(s=>s.el && s.el.remove()); placedShips = [];
-  enemyShips.forEach(s=>s.el && s.el.remove()); enemyShips = [];
+  buildGrid(); buildPool();
+  placedShips.forEach(s=>s.el && s.el.remove()); placedShips=[];
+  enemyShips.forEach(s=>s.el && s.el.remove()); enemyShips=[];
   enemyState = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipRef:null}));
   updateCounts();
-  autoLocked = false;
-  gameStarted = false;
-  playerTurn = true;
-  selectedSize = null;
-  orient = 'h';
-  startBtn.disabled = true;
-  setHint('Выберите корабль внизу и тапните клетку, или нажмите Авторасстановка.');
+  autoLocked=false; gameStarted=false; playerTurn=true; selectedSize=null; orient='h'; startBtn.disabled=true;
+  setHint('Выберите корабль внизу и тапните клетку, или нажмите Авто.');
 }
-
 init();
-
-/* ====== Utility: convert index to r,c ====== */
-function idxToRC(i){ return {r: Math.floor(i/10), c: i%10}; }
-function rcToIdx(r,c){ return r*10 + c; }
 
 </script>
 </body>
