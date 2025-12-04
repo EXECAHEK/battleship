@@ -1,171 +1,132 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Морской бой — исправленная версия</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Морской бой — мобильная версия</title>
 <style>
-:root{
-  --cell-size:48px;    /* клетка 48x48 */
-  --gap:3px;           /* gap между клетками */
-  --pad:16px;          /* padding вокруг board внутри wrap */
+:root {
+  --cell:48px;         /* размер клетки */
+  --gap:3px;
+  --pad:12px;
   --bg:#041426;
+  --panel:#082a32;
   --accent:#1fb6ff;
+  --muted:#9fb6c3;
+  --gray-miss:#6b6f76;
 }
 *{box-sizing:border-box}
-body{margin:0;font-family:Inter,Segoe UI,Arial;background:linear-gradient(180deg,#02121b,#05283a);color:#e6f9ff}
-.container{max-width:1200px;margin:12px auto;padding:12px}
-.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.title{font-weight:700;font-size:20px}
-.subtitle{font-size:13px;color:#cfeeff}
-.layout{display:flex;gap:12px;align-items:flex-start}
-.col-left{flex:1}
-.col-right{width:320px;min-width:220px}
-
-/* cards */
-.card{background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;margin-bottom:12px}
-.menu-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.btn{background:var(--accent);color:#002;border:0;padding:8px 12px;border-radius:8px;font-weight:700;cursor:pointer}
-.btn.ghost{background:transparent;color:#cfeeff;border:1px solid rgba(255,255,255,0.06)}
-.small{font-size:13px;color:#cfeeff}
-
-/* boards */
-.boards{display:flex;gap:12px;flex-wrap:wrap}
-.board-wrap{position:relative;background:rgba(255,255,255,0.02);padding:var(--pad);border-radius:10px}
-.label-top{position:absolute;top:8px;left:calc(var(--pad) + 8px);right:12px;display:flex;gap:calc(var(--gap));pointer-events:none}
-.label-left{position:absolute;left:8px;top:calc(var(--pad) + 8px);bottom:12px;display:flex;flex-direction:column;gap:calc(var(--gap));pointer-events:none;align-items:flex-end}
-.board{display:grid;grid-template-columns:repeat(10,var(--cell-size));grid-template-rows:repeat(10,var(--cell-size));gap:var(--gap);background:linear-gradient(180deg,#083a44,#052f30);border-radius:6px;overflow:visible}
-.cell{width:var(--cell-size);height:var(--cell-size);border-radius:6px;background:linear-gradient(180deg,#0b4d50,#063638);border:1px solid rgba(255,255,255,0.04);position:relative}
-.cell.valid{box-shadow:0 0 0 3px rgba(0,255,0,0.16) inset}
-.cell.invalid{box-shadow:0 0 0 3px rgba(255,0,0,0.14) inset}
+html,body{height:100%;margin:0;font-family:Inter,Segoe UI,Arial;background:linear-gradient(180deg,#02151a,#042a33);color:#eaf6ff}
+.app{max-width:420px;margin:0 auto;padding:12px}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.title{font-weight:700;font-size:18px}
+.hint{font-size:12px;color:var(--muted)}
+.card{background:rgba(255,255,255,0.02);padding:10px;border-radius:10px;margin-bottom:8px}
+.board-wrap{background:linear-gradient(180deg,#063241,#052f2b);border-radius:10px;padding:var(--pad);position:relative;box-shadow:0 6px 20px rgba(0,0,0,0.5)}
+.label-top{position:absolute;top:8px;left:calc(var(--pad) + 8px);right:12px;display:flex;gap:6px;pointer-events:none}
+.label-left{position:absolute;left:8px;top:calc(var(--pad) + 8px);bottom:12px;display:flex;flex-direction:column;gap:6px;pointer-events:none;align-items:flex-end}
+.board{display:grid;grid-template-columns:repeat(10,var(--cell));grid-template-rows:repeat(10,var(--cell));gap:var(--gap);border-radius:6px;overflow:visible;padding:4px}
+.cell{width:var(--cell);height:var(--cell);border-radius:6px;background:linear-gradient(180deg,#0b4d50,#063638);border:1px solid rgba(255,255,255,0.04);position:relative;touch-action:none}
+.cell.valid{box-shadow:0 0 0 3px rgba(0,200,0,0.12) inset}
+.cell.invalid{box-shadow:0 0 0 3px rgba(255,50,50,0.12) inset}
 .cell.occupied{background-color:transparent}
-.cell.hit{ /* cross added via SVG */ }
-.cell.miss{ background-color: #6b6f76 !important; } /* серый для промаха */
-
-/* placed ship (absolute inside wrap) */
+.cell.miss{background:var(--gray-miss) !important}
 .placed-ship{position:absolute;pointer-events:none;background-repeat:no-repeat;background-position:center;background-size:contain;z-index:30;transform-origin:top left}
 
-/* panel */
-.panel{background:rgba(255,255,255,0.03);padding:12px;border-radius:10px}
-.ship-aggregate{display:flex;align-items:center;gap:12px;padding:8px;border-radius:8px;background:linear-gradient(90deg,#102b33,#0b2630);margin-bottom:8px}
-.preview{width:64px;height:40px;background-position:center;background-repeat:no-repeat;background-size:contain;border-radius:6px}
-.meta{flex:1;color:#dff7ff}
-.count{font-weight:700}
+/* panel bottom */
+.panel-bottom{position:fixed;left:0;right:0;bottom:0;padding:10px;background:linear-gradient(180deg,rgba(0,0,0,0.35),rgba(0,0,0,0.5));backdrop-filter:blur(6px);display:flex;flex-direction:column;gap:8px}
+.aggregates{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}
+.ship-agg{min-width:120px;display:flex;gap:8px;align-items:center;padding:8px;border-radius:10px;background:linear-gradient(90deg,#0e2b31,#092529);cursor:pointer;border:1px solid rgba(255,255,255,0.03)}
+.preview{width:56px;height:34px;background-size:contain;background-position:center;background-repeat:no-repeat}
+.agg-meta{font-size:13px;color:#dff6ff}
+.agg-count{font-weight:700;color:var(--accent);margin-left:6px}
 
-/* floating rotate */
-.rotate-float{position:fixed;display:flex;gap:6px;padding:6px;border-radius:8px;background:rgba(0,0,0,0.6);z-index:2000}
+/* controls row */
+.controls{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.btn{background:var(--accent);color:#001;border:0;padding:8px 12px;border-radius:8px;font-weight:700;cursor:pointer}
+.btn.ghost{background:transparent;color:#cfeeff;border:1px solid rgba(255,255,255,0.06)}
+.small{font-size:12px;color:#cfeeff}
+
+/* rotate float */
+.rotate-float{position:fixed;display:none;gap:6px;padding:6px;border-radius:8px;background:rgba(0,0,0,0.6);z-index:2000}
 .icon-btn{width:40px;height:36px;border-radius:8px;background:rgba(255,255,255,0.03);display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid rgba(255,255,255,0.04)}
 
-/* overlay */
+/* overlay end */
 .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:3000;pointer-events:none;opacity:0;transition:opacity .2s}
 .overlay.show{pointer-events:all;opacity:1}
 .overlay .panel{background:rgba(0,0,0,0.7);padding:18px;border-radius:12px;text-align:center;color:#fff}
 
 /* confetti root */
-.confetti-root{position:fixed;inset:0;pointer-events:none;z-index:2500}
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:2900}
 
-/* responsive */
-@media(max-width:900px){
-  .layout{flex-direction:column}
-  .col-right{width:100%}
-  .label-top{left:56px}
-  .label-left{left:8px}
-}
+/* ensure board fits on small screens */
+@media (max-width:380px){ :root{--cell:40px} .ship-agg{min-width:110px} }
 </style>
 </head>
 <body>
-<div class="container">
+<div class="app">
   <div class="header">
     <div>
       <div class="title">Морской бой</div>
-      <div class="subtitle small">Перетащите корабль или тапните по панели → затем тап на поле (моб.). Нажмите R для поворота.</div>
+      <div class="hint">Перетащите корабль из панели или тапните на плашку → затем тап на клетку. Нажмите R для поворота.</div>
     </div>
     <div>
-      <button class="btn" id="dummy">Главный экран</button>
+      <button class="btn" id="btn-main">Главный экран</button>
     </div>
   </div>
 
-  <div class="layout">
-    <div class="col-left">
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div style="font-weight:700">Режим</div>
-            <div class="menu-row" style="margin-top:8px">
-              <button class="btn" id="modeBot">Против бота</button>
-              <button class="btn ghost" id="modePlayer" disabled>Против игрока (выкл)</button>
-            </div>
-          </div>
-          <div>
-            <div style="font-weight:700">Сложность</div>
-            <div class="menu-row" style="margin-top:8px">
-              <button class="btn ghost" data-diff="easy">Лёгкая</button>
-              <button class="btn" data-diff="medium">Средняя</button>
-              <button class="btn ghost" data-diff="hard">Сложная</button>
-            </div>
-          </div>
-        </div>
-      </div>
+  <div class="card board-wrap" id="mainBoardWrap">
+    <div class="label-top" id="labelTop"></div>
+    <div class="label-left" id="labelLeft"></div>
+    <div id="board" class="board" aria-label="Поле игрока"></div>
+  </div>
+</div>
 
-      <div style="display:flex;gap:12px;flex-wrap:wrap">
-        <div class="board-wrap" id="playerWrap">
-          <div class="label-top" id="playerTop"></div>
-          <div class="label-left" id="playerLeft"></div>
-          <div id="playerBoard" class="board" aria-label="Поле игрока"></div>
-        </div>
+<!-- bottom panel (mobile) -->
+<div class="panel-bottom" id="panelBottom">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <div class="small">Панель кораблей</div>
+    <div class="small" id="diffLabel">Сложность: <strong id="diffValue">medium</strong></div>
+  </div>
 
-        <div class="board-wrap" id="enemyWrap">
-          <div class="label-top" id="enemyTop"></div>
-          <div class="label-left" id="enemyLeft"></div>
-          <div id="enemyBoard" class="board" aria-label="Поле противника"></div>
-        </div>
-      </div>
+  <div class="aggregates" id="aggregates"></div>
+
+  <div class="controls">
+    <div style="display:flex;gap:6px">
+      <button class="btn" id="autoBtn">Авторасстановка</button>
+      <button class="btn ghost" id="resetBtn">Сброс</button>
     </div>
-
-    <div class="col-right">
-      <div class="panel">
-        <h3>Панель кораблей</h3>
-        <div id="shipAggregates"></div>
-        <div style="margin-top:10px" class="small">При размещении количество уменьшается; когда 0 — плашка исчезает.</div>
-        <div style="margin-top:10px;display:flex;gap:8px">
-          <button class="btn" id="autoPlace">Авторасстановка</button>
-          <button class="btn" id="clearBtn">Сброс</button>
-        </div>
-      </div>
-
-      <div class="panel" style="margin-top:10px">
-        <h3>Управление</h3>
-        <div id="status" class="small">Разместите все корабли</div>
-        <div style="margin-top:10px;display:flex;gap:8px">
-          <button class="btn" id="startBtn" disabled>Старт игры</button>
-          <button class="btn ghost" id="exportBtn">Экспорт (debug)</button>
-        </div>
-      </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="btn ghost" data-diff="easy">Лёгкая</button>
+      <button class="btn" data-diff="medium">Средняя</button>
+      <button class="btn ghost" data-diff="hard">Сложная</button>
+      <button class="btn" id="startBtn" disabled>Старт</button>
     </div>
   </div>
 </div>
 
-<div id="rotateFloat" class="rotate-float" style="display:none">
-  <div class="icon-btn" id="floatRotLeft" title="Повернуть влево">⟲</div>
-  <div class="icon-btn" id="floatRotRight" title="Повернуть вправо">⟳</div>
+<!-- floating rotate controls -->
+<div id="rotateFloat" class="rotate-float">
+  <div class="icon-btn" id="rotLeftBtn" title="Повернуть влево">⟲</div>
+  <div class="icon-btn" id="rotRightBtn" title="Повернуть вправо">⟳</div>
 </div>
 
-<div class="overlay" id="endOverlay"><div class="panel"><h2 id="endTitle"></h2><p id="endText"></p><button class="btn" id="replayBtn">Перезапустить</button></div></div>
-<div class="confetti-root" id="confettiRoot"></div>
+<!-- overlay -->
+<div class="overlay" id="endOverlay"><div class="panel card" style="padding:18px;text-align:center"><h2 id="endTitle"></h2><p id="endText"></p><button class="btn" id="replayBtn">Перезапустить</button></div></div>
+
+<div class="confetti" id="confettiRoot"></div>
 
 <script>
-/* ---------- Конфигурация ---------- */
-const CELL = 48;         // px
-const GAP  = 3;          // px (совпадает с CSS --gap)
-const PAD  = 16;         // px (совпадает с CSS --pad)
-
+/* ====== CONFIG ====== */
+const CELL = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cell')) || 48;
+const GAP = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--gap')) || 3;
+const PAD = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--pad')) || 12;
 const SHIP_SPEC = [
-  {size:4, count:1, key:'ship1', name:'Линкор'},
-  {size:3, count:2, key:'ship2', name:'Крейсер'},
-  {size:2, count:3, key:'ship3', name:'Эсминец'},
-  {size:1, count:4, key:'ship4', name:'Катер'}
+  {size:4,count:1,key:'ship1',name:'Линкор'},
+  {size:3,count:2,key:'ship2',name:'Крейсер'},
+  {size:2,count:3,key:'ship3',name:'Эсминец'},
+  {size:1,count:4,key:'ship4',name:'Катер'}
 ];
-
 const IMG = {
   ship1:'assets/ships/ship1.png',
   ship2:'assets/ships/ship2.png',
@@ -173,179 +134,135 @@ const IMG = {
   ship4:'assets/ships/ship4.png',
   hit:'assets/hit.png',
   miss:'assets/miss.png',
-  explosion:'assets/explosion.png',
-  confetti:'assets/confetti.png'
+  explosion:'assets/explosion.png'
 };
 
-/* ---------- Состояние ---------- */
-const playerBoardEl = document.getElementById('playerBoard');
-const enemyBoardEl  = document.getElementById('enemyBoard');
-const playerWrapEl  = document.getElementById('playerWrap');
-const enemyWrapEl   = document.getElementById('enemyWrap');
-const shipAggregatesEl = document.getElementById('shipAggregates');
+/* ====== STATE ====== */
+const boardEl = document.getElementById('board');
+const wrapEl  = document.getElementById('mainBoardWrap');
+const aggregatesEl = document.getElementById('aggregates');
+const startBtn = document.getElementById('startBtn');
+const autoBtn = document.getElementById('autoBtn');
+const resetBtn = document.getElementById('resetBtn');
+const diffValue = document.getElementById('diffValue');
 
-let playerCells = [], enemyCells = [];
-let playerState = []; // {ship:false,hit:false,miss:false, shipId:null}
-let enemyState  = [];
-
-let shipsPool = {}; // {size: remainingCount}
-let playerShips = []; // placed ships: {id,size,cells:[idx,...],orient,el}
-let enemyShips  = [];
-
-let selectedShip = null; // {size,key} when user selects from panel
-let draggingShip = null;  // during drag: same shape + previewSrc
-let orientation = 'h';    // 'h' or 'v'
+let cells = [];              // DOM cells
+let state = [];              // {ship:false, hit:false, miss:false, shipRef:null}
+let placedShips = [];        // {el, size, orient, cells:[]}
+let enemyShips = [];         // placed on 'enemy' board stored similarly (we keep data only)
+let pool = {};               // remaining counts per size
+let selectedSize = null;     // size selected from aggregates (tap)
+let dragging = null;         // during drag (desktop)
+let orient = 'h';            // 'h' or 'v'
+let rotateFloat = document.getElementById('rotateFloat');
+let autoLocked = false;      // true after auto placement (locks manual)
 let gameStarted = false;
 let playerTurn = true;
 let difficulty = 'medium';
 
-/* ---------- Вспомогательные функции ---------- */
+/* ====== HELPERS ====== */
 function idxToRC(i){ return {r: Math.floor(i/10), c: i%10}; }
 function rcToIdx(r,c){ return r*10 + c; }
 function isInside(r,c){ return r>=0 && r<10 && c>=0 && c<10; }
-function setStatus(t){ document.getElementById('status').textContent = t; }
+function setStatus(t){ /* small mobile status via hint line in header */ const h=document.querySelector('.hint'); if(h) h.textContent=t; }
 
-/* ---------- Построение сетки и меток ---------- */
-function buildBoards(){
-  // labels
-  const playerTop = document.getElementById('playerTop');
-  const playerLeft = document.getElementById('playerLeft');
-  const enemyTop = document.getElementById('enemyTop');
-  const enemyLeft = document.getElementById('enemyLeft');
-  playerTop.innerHTML=''; playerLeft.innerHTML=''; enemyTop.innerHTML=''; enemyLeft.innerHTML='';
-  for(let j=0;j<10;j++){ const d=document.createElement('div'); d.textContent=j+1; playerTop.appendChild(d); const d2=document.createElement('div'); d2.textContent=j+1; enemyTop.appendChild(d2); }
-  for(let i=0;i<10;i++){ const d=document.createElement('div'); d.textContent=String.fromCharCode(65+i); playerLeft.appendChild(d); const d2=document.createElement('div'); d2.textContent=String.fromCharCode(65+i); enemyLeft.appendChild(d2); }
+/* ====== BUILD BOARD & LABELS ====== */
+function buildBoard(){
+  // top numbers
+  const top = document.getElementById('labelTop');
+  const left = document.getElementById('labelLeft');
+  top.innerHTML=''; left.innerHTML='';
+  for(let j=0;j<10;j++){ const d=document.createElement('div'); d.textContent=j+1; d.style.width= 'calc(var(--cell))'; d.style.textAlign='center'; d.style.fontSize='12px'; d.style.color='var(--muted)'; top.appendChild(d); }
+  for(let i=0;i<10;i++){ const d=document.createElement('div'); d.textContent=String.fromCharCode(65+i); d.style.height='calc(var(--cell))'; d.style.lineHeight='calc(var(--cell))'; d.style.fontSize='12px'; d.style.color='var(--muted)'; left.appendChild(d); }
 
-  // cells
-  playerBoardEl.innerHTML=''; enemyBoardEl.innerHTML='';
-  playerCells = []; enemyCells = [];
+  boardEl.innerHTML='';
+  cells = [];
+  state = [];
   for(let i=0;i<100;i++){
-    const pc = document.createElement('div'); pc.className='cell'; pc.dataset.index=i; playerBoardEl.appendChild(pc); playerCells.push(pc);
-    const ec = document.createElement('div'); ec.className='cell'; ec.dataset.index=i; enemyBoardEl.appendChild(ec); enemyCells.push(ec);
+    const c = document.createElement('div');
+    c.className='cell';
+    c.dataset.index = i;
+    boardEl.appendChild(c);
+    cells.push(c);
+    state.push({ship:false,hit:false,miss:false,shipRef:null});
   }
-  // init states
-  playerState = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipId:null}));
-  enemyState  = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipId:null}));
-  // ensure wrap positioning
-  playerWrapEl.style.position = 'relative';
-  enemyWrapEl.style.position = 'relative';
+  // ensure wrap is positioned for absolute ship elements
+  wrapEl.style.position = 'relative';
 }
 
-/* ---------- Построение панели агрегатов (по типу) ---------- */
-function buildAggregates(){
-  shipAggregatesEl.innerHTML = '';
-  shipsPool = {};
-  for(const s of SHIP_SPEC) shipsPool[s.size] = s.count;
-
+/* ====== POOL UI ====== */
+function buildPool(){
+  aggregatesEl.innerHTML='';
+  pool = {};
+  for(const s of SHIP_SPEC) pool[s.size] = s.count;
   for(const s of SHIP_SPEC){
-    renderAggregateRow(s);
+    renderAgg(s);
   }
 }
 
-function renderAggregateRow(spec){
-  // if remaining count 0 -> skip (removed)
-  const remaining = shipsPool[spec.size];
-  if(remaining <= 0) return;
-  const row = document.createElement('div'); row.className='ship-aggregate'; row.dataset.size = spec.size;
+function renderAgg(spec){
+  if(pool[spec.size] <= 0) return;
+  const row = document.createElement('div');
+  row.className = 'ship-agg';
+  row.dataset.size = spec.size;
   const prev = document.createElement('div'); prev.className='preview';
-  if(IMG['ship'+spec.size]) prev.style.backgroundImage = `url('${IMG['ship'+spec.size]}')`;
-  const meta = document.createElement('div'); meta.className='meta';
-  meta.innerHTML = `<div style="font-weight:700">${spec.name} (${spec.size})</div><div class="small">Осталось: <span class="count" id="count-${spec.size}">${remaining}</span></div>`;
+  if(IMG[spec.key]) prev.style.backgroundImage = `url('${IMG[spec.key]}')`;
+  const meta = document.createElement('div'); meta.className='agg-meta';
+  meta.innerHTML = `<div style="font-weight:700">${spec.name}</div><div class="small">Осталось: <span class="agg-count" id="count-${spec.size}">${pool[spec.size]}</span></div>`;
   row.appendChild(prev); row.appendChild(meta);
-  shipAggregatesEl.appendChild(row);
+  aggregatesEl.appendChild(row);
 
-  // click to select
   row.addEventListener('click', ()=>{
-    // select this ship type
-    selectedShip = {size:spec.size, key:spec.key};
-    // visually indicate selection
-    document.querySelectorAll('.ship-aggregate').forEach(x=>x.style.outline='none');
-    row.style.outline = '2px solid rgba(31,182,255,0.5)';
-    setStatus(`Выбран ${spec.name} (${spec.size}). Перетащите или нажмите клетку для размещения.`);
+    if(autoLocked) return; // locked
+    selectedSize = spec.size;
+    // highlight
+    document.querySelectorAll('.ship-agg').forEach(x=>x.style.outline='none');
+    row.style.outline = '2px solid rgba(31,182,255,0.45)';
+    setStatus(`Выбран ${spec.name} (${spec.size}). Тапните клетку для размещения или перетащите.`);
   });
 
-  // drag support: create invisible draggable element for desktop (we'll use row as source)
+  // drag support for desktop (not primary for mobile, but safe)
   row.draggable = true;
   row.addEventListener('dragstart', (e)=>{
-    draggingShip = {size:spec.size, key:spec.key, previewSrc:IMG['ship'+spec.size], id:'d'+Math.random().toString(36).slice(2,8)};
-    selectedShip = {size:spec.size, key:spec.key};
+    if(autoLocked) { e.preventDefault(); return; }
+    dragging = {size:spec.size, key:spec.key, preview:IMG[spec.key]};
     showRotateFloatAt(e.clientX, e.clientY);
-    try{ e.dataTransfer.setData('text/plain', draggingShip.id); }catch(e){}
   });
-  row.addEventListener('dragend', ()=>{ draggingShip=null; hideRotateFloat(); clearHighlights(); });
+  row.addEventListener('dragend', ()=>{ dragging = null; hideRotateFloat(); clearHighlights(); });
 }
 
-/* Update counts / remove when zero */
-function decrementAggregate(size){
-  shipsPool[size] = Math.max(0, shipsPool[size]-1);
-  // update label
+/* decrement pool and remove when zero */
+function useOne(size){
+  if(pool[size] > 0) pool[size]--;
   const el = document.getElementById('count-'+size);
-  if(el) el.textContent = shipsPool[size];
-  // if reached 0 -> remove DOM row (first match)
-  if(shipsPool[size] === 0){
-    const row = document.querySelector(`.ship-aggregate[data-size="${size}"]`);
+  if(el) el.textContent = pool[size];
+  if(pool[size] === 0){
+    const row = document.querySelector(`.ship-agg[data-size="${size}"]`);
     if(row) row.remove();
+    selectedSize = null;
   }
 }
 
-/* ---------- Размещение (вычисление позиций) ---------- */
-/* IMPORTANT: positions are computed relative to board-wrap padding (PAD) + cell*(CELL+GAP) */
-function placeShipOnWrap(wrapEl, state, domCells, index, size, orient, imgSrc, owner){
-  // owner: 'player' or 'enemy'
+/* ====== PLACEMENT RULES: no-adjacent ====== */
+function canPlaceAt(index, size, orientation){
   const {r,c} = idxToRC(Number(index));
-  const totalWidth = (orient==='h') ? size*CELL + (size-1)*GAP : CELL;
-  const totalHeight= (orient==='v') ? size*CELL + (size-1)*GAP : CELL;
-  const left = PAD + c*(CELL + GAP);
-  const top  = PAD + r*(CELL + GAP);
-
-  // create ship element
-  const shipDiv = document.createElement('div');
-  shipDiv.className = 'placed-ship';
-  shipDiv.style.left = left + 'px';
-  shipDiv.style.top  = top + 'px';
-  shipDiv.style.width = totalWidth + 'px';
-  shipDiv.style.height= totalHeight + 'px';
-  shipDiv.style.backgroundImage = imgSrc ? `url('${imgSrc}')` : '';
-  shipDiv.style.backgroundSize = 'contain';
-  shipDiv.dataset.size = size;
-  shipDiv.dataset.orient = orient;
-  shipDiv.dataset.owner = owner;
-  wrapEl.appendChild(shipDiv);
-
-  const cells = [];
+  // bounds & overlap
   for(let k=0;k<size;k++){
-    const rr = r + (orient==='v'?k:0);
-    const cc = c + (orient==='h'?k:0);
-    const idx = rcToIdx(rr,cc);
-    state[idx].ship = true;
-    state[idx].shipId = shipDiv; // reference to ship element
-    domCells[idx].classList.add('occupied');
-    cells.push(idx);
-  }
-  return {el:shipDiv, size, orient, cells};
-}
-
-/* ---------- Проверка возможности размещения ---------- */
-function canPlaceAt(state, index, size, orient){
-  const {r,c} = idxToRC(Number(index));
-  // bounds
-  for(let k=0;k<size;k++){
-    const rr = r + (orient==='v'?k:0);
-    const cc = c + (orient==='h'?k:0);
+    const rr = r + (orientation==='v'?k:0);
+    const cc = c + (orientation==='h'?k:0);
     if(!isInside(rr,cc)) return false;
     if(state[rcToIdx(rr,cc)].ship) return false;
   }
   // adjacency
   for(let k=0;k<size;k++){
-    const rr = r + (orient==='v'?k:0);
-    const cc = c + (orient==='h'?k:0);
+    const rr = r + (orientation==='v'?k:0);
+    const cc = c + (orientation==='h'?k:0);
     for(let dr=-1; dr<=1; dr++){
       for(let dc=-1; dc<=1; dc++){
         const nr = rr + dr, nc = cc + dc;
         if(!isInside(nr,nc)) continue;
-        if(state[rcToIdx(nr,nc)].ship) {
-          // if that ship cell is part of the same placement set, ignore, else fail
-          // but since we already checked overlaps above, any nearby ship means adjacency violation
+        if(state[rcToIdx(nr,nc)].ship){
+          // adjacency violation
           return false;
         }
       }
@@ -354,115 +271,152 @@ function canPlaceAt(state, index, size, orient){
   return true;
 }
 
-/* ---------- Подсветка при drag/tap ---------- */
-function highlightCells(index, size, orient){
+/* place ship visually and in state */
+function placeShip(index, size, orientation, owner='player'){
+  const {r,c} = idxToRC(Number(index));
+  const w = orientation==='h' ? size*CELL + (size-1)*GAP : CELL;
+  const h = orientation==='v' ? size*CELL + (size-1)*GAP : CELL;
+  const left = PAD + c*(CELL + GAP);
+  const top  = PAD + r*(CELL + GAP);
+  const el = document.createElement('div');
+  el.className='placed-ship';
+  el.style.left = left + 'px';
+  el.style.top  = top  + 'px';
+  el.style.width = w + 'px';
+  el.style.height= h + 'px';
+  el.style.backgroundImage = `url('${IMG['ship'+size]}')`;
+  el.style.backgroundSize = 'contain';
+  el.dataset.size = size;
+  el.dataset.orient = orientation;
+  el.dataset.owner = owner;
+  wrapEl.appendChild(el);
+
+  const cellsIdx = [];
+  for(let k=0;k<size;k++){
+    const rr = r + (orientation==='v'?k:0);
+    const cc = c + (orientation==='h'?k:0);
+    const idx = rcToIdx(rr,cc);
+    state[idx].ship = true;
+    state[idx].shipRef = el;
+    cellsIdx.push(idx);
+    cells[idx].classList.add('occupied');
+  }
+  const shipObj = {el, size, orientation, cells:cellsIdx, owner, sunk:false};
+  placedShips.push(shipObj);
+  return shipObj;
+}
+
+/* highlight cells */
+function highlight(index, size, orientation){
   clearHighlights();
   for(let k=0;k<size;k++){
     const {r,c} = idxToRC(Number(index));
-    const rr = r + (orient==='v'?k:0);
-    const cc = c + (orient==='h'?k:0);
+    const rr = r + (orientation==='v'?k:0);
+    const cc = c + (orientation==='h'?k:0);
     if(!isInside(rr,cc)) continue;
     const idx = rcToIdx(rr,cc);
-    if(canPlaceAt(playerState, index, size, orient)) playerCells[idx].classList.add('valid'); else playerCells[idx].classList.add('invalid');
+    if(canPlaceAt(index, size, orientation)) cells[idx].classList.add('valid'); else cells[idx].classList.add('invalid');
   }
 }
 
-/* ---------- События пользователя для размещения ---------- */
-function attachPlayerEvents(){
-  // dragover / drop for desktop
-  playerCells.forEach(cell=>{
-    cell.addEventListener('dragover', e=>{
+/* clear highlights */
+function clearHighlights(){
+  cells.forEach(c=> { c.classList.remove('valid','invalid'); });
+}
+
+/* ====== EVENTS: mobile tap placement + drag ====== */
+function attachEvents(){
+  // cell taps
+  cells.forEach(cell=>{
+    cell.addEventListener('click', ()=>{
+      if(gameStarted) return;
+      if(autoLocked) return; // blocked after auto place
+      const idx = cell.dataset.index;
+      const sizeToPlace = dragging ? dragging.size : selectedSize;
+      if(!sizeToPlace) { setStatus('Выберите корабль внизу'); return; }
+      if(!canPlaceAt(idx, sizeToPlace, orient)) { setStatus('Нельзя разместить здесь'); highlight(idx,sizeToPlace,orient); setTimeout(clearHighlights,400); return; }
+      placeShip(idx, sizeToPlace, orient, 'player');
+      useOne(sizeToPlace);
+      clearHighlights();
+      setStatus('Корабль размещён');
+      // if pool finished -> enable start
+      if(Object.values(pool).every(v=>v===0)){ startBtn.disabled = false; setStatus('Все корабли размещены — нажмите Старт'); }
+      // if removed last aggregate, remove selection
+      if(pool[sizeToPlace] === 0) selectedSize = null;
+    });
+    // dragover for desktop
+    cell.addEventListener('dragover', (e)=>{
       e.preventDefault();
-      const id = cell.dataset.index;
-      if(draggingShip){
-        highlightCells(id, draggingShip.size, orientation);
-        showRotateFloatAt(e.clientX, e.clientY);
-      } else if(selectedShip){
-        highlightCells(id, selectedShip.size, orientation);
-      }
+      const idx = cell.dataset.index;
+      if(dragging){ highlight(idx, dragging.size, orient); showRotateFloatAt(e.clientX, e.clientY); }
+      else if(selectedSize){ highlight(idx, selectedSize, orient); }
     });
     cell.addEventListener('dragleave', ()=>{ clearHighlights(); hideRotateFloat(); });
-    cell.addEventListener('drop', e=>{
+    cell.addEventListener('drop', (e)=>{
       e.preventDefault();
+      if(!dragging) return;
       const idx = cell.dataset.index;
-      const shipToPlace = draggingShip ? draggingShip : selectedShip;
-      if(!shipToPlace) return;
-      if(canPlaceAt(playerState, idx, shipToPlace.size, orientation)){
-        const src = IMG['ship'+shipToPlace.size];
-        const placed = placeShipOnWrap(playerWrapEl, playerState, playerCells, idx, shipToPlace.size, orientation, src, 'player');
-        playerShips.push(placed);
-        // decrement pool only when caused by aggregate selection or drag from aggregate
-        decrementAggregate(shipToPlace.size);
-        // if dragged element was an actual row element, remove its visual indicator
-        if(draggingShip && draggingShip.el) draggingShip.el.remove();
-        // if selection (not drag), remove one count
-        if(selectedShip) {
-          // remove one unit by marking one placed slot (we already decremented)
-          selectedShip = null;
-          document.querySelectorAll('.ship-aggregate').forEach(x=>x.style.outline='none');
-        }
-        clearHighlights();
-        updateAfterPlacement();
-      } else setStatus('Нельзя разместить здесь');
-      hideRotateFloat();
-      draggingShip = null;
+      const sizeToPlace = dragging.size;
+      if(!canPlaceAt(idx,sizeToPlace,orient)) { setStatus('Нельзя разместить здесь'); return; }
+      placeShip(idx,sizeToPlace,orient,'player');
+      useOne(sizeToPlace);
+      dragging = null; hideRotateFloat(); clearHighlights();
+      if(Object.values(pool).every(v=>v===0)){ startBtn.disabled = false; setStatus('Все корабли размещены — нажмите Старт'); }
     });
+    cell.addEventListener('pointermove',(e)=>{ if(dragging) showRotateFloatAt(e.clientX,e.clientY); });
+  });
 
-    // tap-to-place (mobile)
-    cell.addEventListener('click', ()=>{
-      const idx = cell.dataset.index;
-      if(!selectedShip) return;
-      if(canPlaceAt(playerState, idx, selectedShip.size, orientation)){
-        const src = IMG['ship'+selectedShip.size];
-        const placed = placeShipOnWrap(playerWrapEl, playerState, playerCells, idx, selectedShip.size, orientation, src, 'player');
-        playerShips.push(placed);
-        decrementAggregate(selectedShip.size);
-        selectedShip = null;
-        document.querySelectorAll('.ship-aggregate').forEach(x=>x.style.outline='none');
-        clearHighlights();
-        updateAfterPlacement();
-      } else {
-        setStatus('Нельзя разместить здесь');
-        highlightCells(idx, selectedShip.size, orientation);
-        setTimeout(()=>clearHighlights(),500);
-      }
-    });
+  // rotate float buttons
+  document.getElementById('rotLeftBtn').addEventListener('click', ()=>{ orient = (orient==='h'?'v':'h'); setStatus('Ориентация: '+orient); });
+  document.getElementById('rotRightBtn').addEventListener('click', ()=>{ orient = (orient==='h'?'v':'h'); setStatus('Ориентация: '+orient); });
 
-    cell.addEventListener('pointermove', e=>{
-      if(draggingShip) showRotateFloatAt(e.clientX, e.clientY);
+  // start button
+  startBtn.addEventListener('click', ()=>{
+    if(!Object.values(pool).every(v=>v===0)) { setStatus('Разместите все корабли прежде чем стартовать'); return; }
+    gameStarted = true;
+    startBtn.disabled = true;
+    autoLocked = true;
+    setStatus('Игра началась. Ваш ход.');
+    // prepare enemy ships placement (hidden until sunk)
+    placeEnemyAuto();
+  });
+
+  // auto placement
+  autoBtn.addEventListener('click', ()=>{
+    if(gameStarted) return;
+    autoPlacePlayer();
+    autoLocked = true;
+    setStatus('Авторасстановка выполнена. Нажмите Старт.');
+    startBtn.disabled = false;
+  });
+
+  // reset
+  resetBtn.addEventListener('click', ()=>{ init(); setStatus('Сброс выполнен'); });
+
+  // difficulty buttons
+  document.querySelectorAll('[data-diff]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('[data-diff]').forEach(x=>x.classList.remove('btn'));
+      btn.classList.add('btn');
+      difficulty = btn.dataset.diff;
+      diffValue.textContent = difficulty;
+      setStatus('Сложность: '+difficulty);
     });
   });
+
+  // replay overlay
+  document.getElementById('replayBtn').addEventListener('click', ()=>{ init(); document.getElementById('endOverlay').classList.remove('show'); });
+  // keyboard rotate (useful if testing on desktop)
+  window.addEventListener('keydown', (e)=>{ if(e.key.toLowerCase()==='r'){ orient = (orient==='h'?'v':'h'); setStatus('Ориентация: '+orient); }});
 }
 
-/* ---------- После размещения: обновления ---------- */
-function updateAfterPlacement(){
-  updatePoolCounts();
-  const left = Object.values(shipsPool).reduce((s,v)=>s+v,0);
-  setStatus(left===0 ? 'Все корабли размещены. Нажмите "Старт игры".' : `Осталось разместить ${left} кораблей`);
-  if(left===0) document.getElementById('startBtn').disabled = false;
-}
-
-/* update aggregated counts UI */
-function updatePoolCounts(){
-  for(const spec of SHIP_SPEC){
-    const span = document.getElementById('count-'+spec.size);
-    if(span) span.textContent = shipsPool[spec.size];
-    if(shipsPool[spec.size] <= 0){
-      const row = document.querySelector(`.ship-aggregate[data-size="${spec.size}"]`);
-      if(row) row.remove();
-    }
-  }
-}
-
-/* markPlaced used earlier */
-function markPlacedDummy(){ /* not used now */ }
-
-/* ---------- Enemy placement with ship objects ---------- */
-function placeEnemyShipsAuto(){
-  // clear enemy wrap placed-ship elements first
-  enemyWrapEl.querySelectorAll('.placed-ship').forEach(e=>e.remove());
-  enemyState = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipId:null}));
+/* ====== ENEMY: auto placement & gameplay ====== */
+function placeEnemyAuto(){
+  // clear any previous enemy ships
   enemyShips = [];
+  // We'll fill enemyState separately (re-use same state array but keep shipRef separate)
+  // For simplicity keep enemy state in separate structure
+  const enemyState = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipRef:null}));
   const sizes=[];
   for(const s of SHIP_SPEC) for(let k=0;k<s.count;k++) sizes.push(s.size);
   for(const size of sizes){
@@ -470,75 +424,111 @@ function placeEnemyShipsAuto(){
     while(!placed && attempts<2000){
       attempts++;
       const idx = Math.floor(Math.random()*100);
-      const orient = Math.random() < 0.5 ? 'h' : 'v';
-      if(canPlaceAt(enemyState, idx, size, orient)){
-        const src = IMG['ship'+size];
-        const shipObj = placeShipOnWrap(enemyWrapEl, enemyState, enemyCells, idx, size, orient, src, 'enemy');
-        // immediately hide enemy ship visuals (we'll reveal when sunk)
-        shipObj.el.style.opacity = 0;
-        shipObj.el.style.filter = 'brightness(0)';
-        enemyShips.push(shipObj);
-        placed = true;
+      const orientE = Math.random()<0.5?'h':'v';
+      if(canPlaceGeneric(enemyState, idx, size, orientE)){
+        // place ship in enemyState (we will create a hidden element on wrapEl to show later)
+        const {r,c} = idxToRC(Number(idx));
+        for(let k=0;k<size;k++){
+          const rr = r + (orientE==='v'?k:0);
+          const cc = c + (orientE==='h'?k:0);
+          enemyState[rcToIdx(rr,cc)].ship = true;
+        }
+        // create visible but hidden ship element to reveal later when sunk
+        const w = orientE==='h' ? size*CELL + (size-1)*GAP : CELL;
+        const h = orientE==='v' ? size*CELL + (size-1)*GAP : CELL;
+        const left = PAD + c*(CELL + GAP);
+        const top  = PAD + r*(CELL + GAP);
+        const shipEl = document.createElement('div');
+        shipEl.className = 'placed-ship';
+        shipEl.style.left = left + 'px';
+        shipEl.style.top  = top  + 'px';
+        shipEl.style.width = w + 'px';
+        shipEl.style.height= h + 'px';
+        shipEl.style.backgroundImage = `url('${IMG['ship'+size]}')`;
+        shipEl.style.backgroundSize = 'contain';
+        shipEl.style.opacity = 0;
+        shipEl.style.filter = 'brightness(0)';
+        wrapEl.appendChild(shipEl);
+        // record cells for this ship
+        const cellsArr = [];
+        for(let k=0;k<size;k++){
+          const rr = r + (orientE==='v'?k:0);
+          const cc = c + (orientE==='h'?k:0);
+          const idxCell = rcToIdx(rr,cc);
+          cellsArr.push(idxCell);
+        }
+        enemyShips.push({el:shipEl,size,orient:orientE,cells:cellsArr,sunk:false});
+        placed=true;
       }
     }
-    if(!placed) console.warn('Не удалось разместить вражеский корабль:', size);
   }
+  // store enemyState on global for hits tracking
+  window._enemyState = enemyState;
 }
 
-/* ---------- Gameplay: shots, hits, misses, sunk reveal ---------- */
-function startGame(){
-  if(Object.values(shipsPool).some(v=>v>0)){ setStatus('Сначала разместите все корабли'); return; }
-  gameStarted = true;
-  playerTurn = true;
-  document.getElementById('startBtn').disabled = true;
-  setStatus('Игра началась. Ваш ход.');
-  // bind clicks on enemy cells (they are already created but ensure fresh)
-  enemyCells.forEach((cell, idx)=>{
-    cell.onclick = ()=>{
-      if(!gameStarted || !playerTurn) return;
-      if(enemyState[idx].hit || enemyState[idx].miss) return;
-      fireAtEnemy(idx);
-    };
-  });
+/* generic canPlace for enemy independent state */
+function canPlaceGeneric(st, index, size, orientation){
+  const {r,c} = idxToRC(Number(index));
+  for(let k=0;k<size;k++){
+    const rr = r + (orientation==='v'?k:0);
+    const cc = c + (orientation==='h'?k:0);
+    if(!isInside(rr,cc)) return false;
+    if(st[rcToIdx(rr,cc)].ship) return false;
+  }
+  for(let k=0;k<size;k++){
+    const rr = r + (orientation==='v'?k:0);
+    const cc = c + (orientation==='h'?k:0);
+    for(let dr=-1; dr<=1; dr++){
+      for(let dc=-1; dc<=1; dc++){
+        const nr = rr + dr, nc = cc + dc;
+        if(!isInside(nr,nc)) continue;
+        if(st[rcToIdx(nr,nc)].ship) return false;
+      }
+    }
+  }
+  return true;
 }
 
-function fireAtEnemy(idx){
-  if(enemyState[idx].ship){
-    enemyState[idx].hit = true;
-    renderHit(enemyCells[idx]);
-    setStatus('Попадание! Ход остаётся за вами');
-    // check which ship was hit
-    checkSunk(enemyShips, enemyState, 'enemy');
-    if(checkWin(enemyState)){ finish(true); }
-    // else player's turn continues
+/* ====== SHOOTING: player shoots enemy; bot shoots player ====== */
+function playerShootAt(idx){
+  if(!gameStarted || !playerTurn) return;
+  const es = window._enemyState;
+  if(es[idx].hit || es[idx].miss) return;
+  if(es[idx].ship){
+    es[idx].hit = true;
+    renderHitAt(cells[idx], 'enemy'); // draw cross on enemy cell (cells refers to player's view of enemy - we only have one board, but for mobile we use same board for simplicity)
+    setStatus('Попадание! Выстрел снова.');
+    // check ship sunk
+    checkSunkEnemy();
+    if(checkWinEnemy()) finish(true);
+    // keep player's turn
   } else {
-    enemyState[idx].miss = true;
-    renderMiss(enemyCells[idx]);
+    es[idx].miss = true;
+    renderMissAt(cells[idx]);
     playerTurn = false;
-    setStatus('Мимо — ходит бот');
+    setStatus('Мимо. Ходит бот.');
     setTimeout(botMove, 700);
   }
 }
 
 function botMove(){
-  // simple bot behavior depending on difficulty
-  const choices = playerCells.map((c,i)=>i).filter(i=>!playerState[i].hit && !playerState[i].miss);
+  // bot chooses random available cell (difficulty affects selection)
+  const choices = cells.map((c,i)=>i).filter(i=> !state[i].hit && !state[i].miss );
   if(choices.length === 0) return;
   let idx;
   if(difficulty === 'easy') idx = choices[Math.floor(Math.random()*choices.length)];
   else if(difficulty === 'hard'){
-    // try to find neighbor of a hit
-    const hitIdxs = playerState.map((s,i)=> s.hit ? i : -1).filter(i=>i>=0);
-    if(hitIdxs.length>0){
-      // try neighbors of last hit
+    // try to target near last hit
+    const hits = state.map((s,i)=> s.hit ? i : -1).filter(x=>x>=0);
+    if(hits.length > 0){
       let found = -1;
-      for(const h of hitIdxs){
+      for(const h of hits){
         const {r,c} = idxToRC(h);
         const neigh = [[r+1,c],[r-1,c],[r,c+1],[r,c-1]];
         for(const [nr,nc] of neigh){
           if(isInside(nr,nc)){
             const idn = rcToIdx(nr,nc);
-            if(!playerState[idn].hit && !playerState[idn].miss){ found = idn; break; }
+            if(!state[idn].hit && !state[idn].miss){ found = idn; break; }
           }
         }
         if(found>=0) break;
@@ -547,178 +537,180 @@ function botMove(){
     } else idx = choices[Math.floor(Math.random()*choices.length)];
   } else idx = choices[Math.floor(Math.random()*choices.length)];
 
-  if(playerState[idx].ship){
-    playerState[idx].hit = true; renderHit(playerCells[idx]); setStatus('Бот попал! Бот ходит снова');
-    checkSunk(playerShips, playerState, 'player');
-    if(checkWin(playerState)){ finish(false); return; }
+  if(state[idx].ship){
+    state[idx].hit = true;
+    renderHitAt(cells[idx], 'player');
+    setStatus('Бот попал! Бот стреляет снова.');
     setTimeout(botMove, 450);
+    if(checkWinPlayer()) finish(false);
   } else {
-    playerState[idx].miss = true; renderMiss(playerCells[idx]);
-    playerTurn = true; setStatus('Бот промахнулся. Ваш ход.');
+    state[idx].miss = true;
+    renderMissAt(cells[idx]);
+    playerTurn = true;
+    setStatus('Бот промахнулся. Ваш ход.');
   }
 }
 
-/* render hit: add cross (SVG) */
-function renderHit(cellEl){
-  cellEl.classList.add('hit');
+/* render cross (hit) */
+function renderHitAt(cellEl, owner){
   const svgns = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(svgns, 'svg');
+  const svg = document.createElementNS(svgns,'svg');
   svg.setAttribute('viewBox','0 0 48 48');
-  svg.style.position='absolute'; svg.style.left='0'; svg.style.top='0'; svg.style.width='100%'; svg.style.height='100%'; svg.style.pointerEvents='none';
-  const line1 = document.createElementNS(svgns,'line'); line1.setAttribute('x1','8'); line1.setAttribute('y1','8'); line1.setAttribute('x2','40'); line1.setAttribute('y2','40'); line1.setAttribute('stroke','white'); line1.setAttribute('stroke-width','3'); line1.setAttribute('stroke-linecap','round');
-  const line2 = document.createElementNS(svgns,'line'); line2.setAttribute('x1','40'); line2.setAttribute('y1','8'); line2.setAttribute('x2','8'); line2.setAttribute('y2','40'); line2.setAttribute('stroke','white'); line2.setAttribute('stroke-width','3'); line2.setAttribute('stroke-linecap','round');
-  svg.appendChild(line1); svg.appendChild(line2);
+  svg.style.position='absolute';
+  svg.style.left='0'; svg.style.top='0'; svg.style.width='100%'; svg.style.height='100%';
+  svg.style.pointerEvents='none';
+  const l1 = document.createElementNS(svgns,'line');
+  l1.setAttribute('x1','8'); l1.setAttribute('y1','8'); l1.setAttribute('x2','40'); l1.setAttribute('y2','40');
+  l1.setAttribute('stroke','white'); l1.setAttribute('stroke-width','3'); l1.setAttribute('stroke-linecap','round');
+  const l2 = document.createElementNS(svgns,'line');
+  l2.setAttribute('x1','40'); l2.setAttribute('y1','8'); l2.setAttribute('x2','8'); l2.setAttribute('y2','40');
+  l2.setAttribute('stroke','white'); l2.setAttribute('stroke-width','3'); l2.setAttribute('stroke-linecap','round');
+  svg.appendChild(l1); svg.appendChild(l2);
   cellEl.appendChild(svg);
 }
 
-/* render miss: gray fill already via class; optionally show miss.png if exists */
-function renderMiss(cellEl){
+/* render miss */
+function renderMissAt(cellEl){
   cellEl.classList.add('miss');
-  // optionally add miss image if provided (keeps gray fallback)
   if(IMG.miss){
-    const img = new Image(); img.src = IMG.miss; img.style.position='absolute'; img.style.left=0; img.style.top=0; img.style.width='100%'; img.style.height='100%'; img.style.objectFit='contain'; img.style.opacity=0.95;
+    const img = new Image(); img.src = IMG.miss; img.style.position='absolute'; img.style.left=0; img.style.top=0; img.style.width='100%'; img.style.height='100%'; img.style.objectFit='contain';
     cellEl.appendChild(img);
   }
 }
 
-/* check sunk: shipsList is playerShips or enemyShips */
-function checkSunk(shipsList, stateArray, owner){
-  for(const ship of shipsList){
+/* check if any enemy ship fully hit -> reveal ship */
+function checkSunkEnemy(){
+  const es = window._enemyState;
+  for(const ship of enemyShips){
     if(ship.sunk) continue;
-    const allHit = ship.cells.every(idx => stateArray[idx].hit);
+    const allHit = ship.cells.every(idx => es[idx].hit);
     if(allHit){
       ship.sunk = true;
-      // reveal ship image if enemy
-      if(owner === 'enemy'){
-        ship.el.style.opacity = 1;
-        ship.el.style.filter = '';
-      }
-      // keep crosses as they are (we already render them on hits)
-      // optionally add effect
+      // reveal ship visual
+      ship.el.style.opacity = 1;
+      ship.el.style.filter = '';
     }
   }
 }
 
-/* check overall win: used earlier */
-
-/* finish game */
-function finish(playerWon){
-  const overlay = document.getElementById('endOverlay');
-  document.getElementById('endTitle').textContent = playerWon ? 'ПОБЕДА!' : 'ПОРАЖЕНИЕ';
-  document.getElementById('endText').textContent = playerWon ? 'Вы потопили все корабли противника.' : 'Все ваши корабли потоплены.';
-  overlay.classList.add('show');
-  launchConfetti(playerWon ? 240 : 80, playerWon ? 7000 : 3500);
+/* check enemy lost */
+function checkWinEnemy(){
+  const es = window._enemyState;
+  return !es.some(s=>s.ship && !s.hit);
 }
 
-/* ---------- Auto-place player (same rules) ---------- */
+/* check player lost */
+function checkWinPlayer(){
+  return !state.some(s=>s.ship && !s.hit);
+}
+
+/* ====== AUTO PLACE PLAYER (locks manual) ====== */
 function autoPlacePlayer(){
-  // clear player wrap placed ships
-  playerWrapEl.querySelectorAll('.placed-ship').forEach(e=>e.remove());
-  playerState = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipId:null}));
-  playerShips = [];
-  shipsPool = {};
-  for(const s of SHIP_SPEC) shipsPool[s.size] = s.count;
-  const sizes=[];
+  // clear existing placed ships and state
+  placedShips.forEach(s=>s.el.remove());
+  placedShips = [];
+  state = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipRef:null}));
+  cells.forEach(c=>{ c.className='cell'; });
+  // reset pool
+  pool = {};
+  for(const s of SHIP_SPEC) pool[s.size] = s.count;
+  const sizes = [];
   for(const s of SHIP_SPEC) for(let k=0;k<s.count;k++) sizes.push(s.size);
   for(const size of sizes){
     let placed=false, attempts=0;
     while(!placed && attempts<2000){
       attempts++;
       const idx = Math.floor(Math.random()*100);
-      const orient = Math.random()<0.5?'h':'v';
-      if(canPlaceAt(playerState, idx, size, orient)){
-        const src = IMG['ship'+size];
-        const obj = placeShipOnWrap(playerWrapEl, playerState, playerCells, idx, size, orient, src, 'player');
-        playerShips.push(obj);
-        shipsPool[size]--;
-        placed = true;
+      const ornt = Math.random()<0.5?'h':'v';
+      if(canPlaceAt(idx,size,ornt)){
+        placeShip(idx,size,ornt,'player');
+        pool[size]--;
+        placed=true;
       }
     }
-    if(!placed) console.warn('auto place player failed', size);
   }
-  buildAggregates(); // rebuild aggregates to reflect new counts
-  updatePoolCounts();
-  checkAllPlacedState();
+  // rebuild aggregates to reflect pool counts (some rows removed)
+  aggregatesEl.innerHTML='';
+  for(const s of SHIP_SPEC) if(pool[s.size]>0) renderAgg(s);
+  // lock manual placement
+  autoLocked = true;
+  // startBtn enable
+  startBtn.disabled = false;
 }
 
-function checkAllPlacedState(){
-  const left = Object.values(shipsPool).reduce((s,v)=>s+v,0);
-  if(left===0) { setStatus('Все корабли размещены. Нажмите "Старт игры".'); document.getElementById('startBtn').disabled = false; }
+/* ====== INIT & RESET ====== */
+function init(){
+  // clear placed elements
+  wrapEl.querySelectorAll('.placed-ship').forEach(e=>e.remove());
+  placedShips = [];
+  enemyShips = [];
+  selectedSize = null;
+  dragging = null;
+  orient = 'h';
+  autoLocked = false;
+  gameStarted = false;
+  playerTurn = true;
+  buildBoard();
+  buildPool();
+  attachEvents();
+  setStatus('Выберите корабль внизу и тапните клетку, или нажмите Авторасстановка.');
+  startBtn.disabled = true;
+  diffValue.textContent = difficulty;
+  // clear any global enemy state
+  window._enemyState = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipRef:null}));
 }
 
-/* ---------- confetti ---------- */
-function launchConfetti(count=100, duration=4000){
+/* ====== FINISH ====== */
+function finish(playerWon){
+  const overlay = document.getElementById('endOverlay');
+  document.getElementById('endTitle').textContent = playerWon ? 'ПОБЕДА!' : 'ПОРАЖЕНИЕ';
+  document.getElementById('endText').textContent = playerWon ? 'Вы потопили все корабли противника.' : 'Ваши корабли потоплены.';
+  overlay.classList.add('show');
+  launchConfetti(playerWon ? 200 : 80, playerWon ? 6000 : 3000);
+}
+
+/* ====== CONFETTI ====== */
+function launchConfetti(count=80, duration=4000){
   const root = document.getElementById('confettiRoot'); root.innerHTML='';
   const colors = ['#ff4d4f','#ffd666','#69c0ff','#95de64','#ff85c0','#ffd591'];
   for(let i=0;i<count;i++){
-    const d = document.createElement('div'); d.style.position='fixed';
-    d.style.left = Math.random()*100 + 'vw'; d.style.top = (-10 - Math.random()*30) + 'vh';
-    const s = (6 + Math.random()*8) + 'px'; d.style.width = s; d.style.height = s;
-    d.style.background = colors[Math.floor(Math.random()*colors.length)];
-    d.style.opacity = 0.95; d.style.transform = `rotate(${Math.random()*360}deg)`; d.style.borderRadius='2px'; d.style.zIndex=1500;
-    root.appendChild(d);
+    const el = document.createElement('div'); el.style.position='fixed';
+    el.style.left = Math.random()*100 + 'vw'; el.style.top = (-10 - Math.random()*30) + 'vh';
+    const s = (6 + Math.random()*8) + 'px'; el.style.width = s; el.style.height = s;
+    el.style.background = colors[Math.floor(Math.random()*colors.length)];
+    el.style.opacity = 0.95; el.style.transform = `rotate(${Math.random()*360}deg)`; el.style.borderRadius='2px'; el.style.zIndex=2900;
+    root.appendChild(el);
     const dur = duration + Math.random()*1500;
-    d.animate([{transform:d.style.transform + ' translateY(0)'},{transform:d.style.transform + ' translateY(' + (window.innerHeight + 300) + 'px)'}], {duration:dur, easing:'linear', iterations:1});
-    setTimeout(()=>d.remove(), dur+50);
+    el.animate([{transform:el.style.transform + ' translateY(0)'},{transform:el.style.transform + ' translateY(' + (window.innerHeight + 400) + 'px)'}], {duration:dur, easing:'linear', iterations:1});
+    setTimeout(()=>el.remove(), dur+80);
   }
 }
 
-/* ---------- rotate float ---------- */
-const rotateFloat = document.getElementById('rotateFloat');
-function showRotateFloatAt(x,y){ rotateFloat.style.display='flex'; rotateFloat.style.left = (x+12) + 'px'; rotateFloat.style.top = (y+12) + 'px'; }
+/* ====== FLOAT ROTATE POSITIONING ====== */
+function showRotateFloatAt(x,y){
+  rotateFloat.style.display='flex';
+  rotateFloat.style.left = (x + 8) + 'px';
+  rotateFloat.style.top  = (y + 8) + 'px';
+}
 function hideRotateFloat(){ rotateFloat.style.display='none'; }
 
-/* float rotate buttons */
-document.getElementById('floatRotLeft').addEventListener('click', ()=>{ orientation = (orientation==='h'?'v':'h'); setStatus('Ориентация: '+orientation); });
-document.getElementById('floatRotRight').addEventListener('click', ()=>{ orientation = (orientation==='h'?'v':'h'); setStatus('Ориентация: '+orientation); });
-
-/* main rotate buttons */
-document.getElementById('rotLeft')?.addEventListener('click', ()=>{ orientation = (orientation==='h'?'v':'h'); setStatus('Ориентация: '+orientation); });
-document.getElementById('rotRight')?.addEventListener('click', ()=>{ orientation = (orientation==='h'?'v':'h'); setStatus('Ориентация: '+orientation); });
-
-/* keyboard rotate */
-window.addEventListener('keydown', (e)=>{ if(e.key.toLowerCase()==='r'){ orientation = (orientation==='h'?'v':'h'); setStatus('Ориентация: '+orientation); } });
-
-/* difficulty buttons */
-document.querySelectorAll('[data-diff]').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    difficulty = btn.dataset.diff;
-    document.querySelectorAll('[data-diff]').forEach(x=>x.classList.remove('btn')); btn.classList.add('btn');
-    setStatus('Сложность: '+difficulty);
-  });
-});
-
-/* UI buttons */
-document.getElementById('autoPlace').addEventListener('click', ()=>{ autoPlacePlayer(); setStatus('Авторасстановка завершена'); document.getElementById('startBtn').disabled=false; });
-document.getElementById('clearBtn').addEventListener('click', ()=>{ init(); });
-document.getElementById('startBtn').addEventListener('click', ()=>{ startGame(); });
-document.getElementById('exportBtn').addEventListener('click', ()=>{
-  const data = {playerState, enemyState, playerShips, enemyShips};
-  const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
-  const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download='battle_state.json'; a.click(); URL.revokeObjectURL(url);
-});
-document.getElementById('replayBtn').addEventListener('click', ()=>{ init(); document.getElementById('endOverlay').classList.remove('show'); });
-
-/* ---------- utility: clear highlights ---------- */
-function clearHighlights(){ playerCells.forEach(c=>c.classList.remove('valid','invalid')); }
-
-/* ---------- init ---------- */
-function init(){
-  buildBoards();
-  buildAggregates();
-  attachPlayerEvents();
-  placeEnemyShipsAuto();
-  updatePoolCounts();
-  setStatus('Разместите корабли: выберите в панели или перетащите.');
-  document.getElementById('startBtn').disabled = true;
-  document.getElementById('endOverlay').classList.remove('show');
-}
+/* ====== START ====== */
 init();
 
-/* ---------- check win helper ---------- */
-function checkWin(state){
-  return !state.some(s=>s.ship && !s.hit);
-}
+/* Expose some helpers for touch pointer to show rotate float while pressing */
+boardEl.addEventListener('pointermove', (e)=>{ if(selectedSize || dragging) showRotateFloatAt(e.clientX,e.clientY); });
+boardEl.addEventListener('pointerleave', ()=>{ hideRotateFloat(); });
+
+/* When user taps an already placed hit during game — if it's enemy and sunk, nothing else needed.
+   For shooting on mobile we use same grid: user taps a cell to shoot when gameStarted=true.
+*/
+boardEl.addEventListener('click', (e)=>{
+  if(!gameStarted) return;
+  const target = e.target.closest('.cell');
+  if(!target) return;
+  const idx = Number(target.dataset.index);
+  playerShootAt(idx);
+});
 </script>
 </body>
 </html>
