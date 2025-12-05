@@ -6,13 +6,12 @@
 <title>Морской бой — моб</title>
 <style>
 :root{
-  --cell:35px;            /* клетка */
+  --cell:35px;
   --label-font:16px;
   --label-offset:12px;
   --accent:#1fb6ff;
   --muted:#bcd3eb;
   --bg:#041827;
-  --panel:#0a2b30;
   --miss-gray:#6b6f76;
   --ship-h:35px;
 }
@@ -23,10 +22,8 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#02151a,#052a33
 .title{font-size:18px;margin:0}
 .hint{font-size:13px;color:var(--muted);margin-top:4px}
 
-/* boards container: mobile column */
+/* boards */
 .boards-container{ display:flex; flex-direction:column; align-items:center; gap:12px; padding:8px; }
-
-/* wrapper for a single board (player or enemy) */
 .board-wrap{ width: calc(var(--cell) * 10); position:relative; padding-top: calc(var(--label-offset) + var(--label-font)); }
 .coords-top{ position:absolute; left:0; top:calc(var(--label-offset)); width:calc(var(--cell) * 10); display:grid; grid-template-columns: repeat(10, var(--cell)); pointer-events:none; color:var(--muted); font-weight:700; font-size:var(--label-font); text-align:center; z-index:5; }
 .board{ width: calc(var(--cell) * 10); height: calc(var(--cell) * 10); display:grid; grid-template-columns: repeat(10, var(--cell)); grid-template-rows: repeat(10, var(--cell)); gap:2px; background:linear-gradient(180deg,#083241,#042e2a); border-radius:8px; overflow:visible; box-shadow:0 8px 20px rgba(0,0,0,0.6); position:relative; }
@@ -37,10 +34,22 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#02151a,#052a33
 .cell.invalid{ box-shadow:0 0 0 3px rgba(255,0,0,0.12) inset; }
 .cell.occupied{ background-color:transparent; }
 
-/* placed ship: absolute inside board (left/top in px) */
-.placed-ship{ position:absolute; pointer-events:none; background-repeat:no-repeat; background-position:center; background-size:100% 100%; transform-origin:left top; z-index:20; }
+/* placed ship container */
+.placed-ship{ position:absolute; pointer-events:none; overflow:visible; z-index:20; }
 
-/* hit / miss visuals */
+/* image inside placed-ship (originally vertical) */
+.placed-ship img{
+  position:absolute;
+  left:0;
+  top:0;
+  display:block;
+  user-select:none;
+  -webkit-user-drag: none;
+  image-rendering: optimizeQuality;
+  transform-origin: left top;
+}
+
+/* hit/miss */
 .cell.miss{ background: var(--miss-gray) !important; }
 .hit-svg{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:30; }
 
@@ -49,15 +58,18 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#02151a,#052a33
 .panel-row{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
 .aggregates{ display:flex; gap:8px; overflow:auto; padding-bottom:6px; }
 .agg{ min-width:120px; display:flex; gap:8px; align-items:center; padding:8px; border-radius:10px; background:linear-gradient(90deg,#0e2b31,#092529); cursor:pointer; border:1px solid rgba(255,255,255,0.03); }
-.preview{ width:56px; height:36px; background-size:contain; background-position:center; background-repeat:no-repeat; }
+.preview{ width:56px; height:36px; background-size:contain; background-position:center; background-repeat:no-repeat; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.preview img{ max-width:100%; max-height:100%; object-fit:contain; transform-origin:center; }
+
+/* meta */
 .meta{ color:#dff6ff; font-size:13px; }
 .count{ color:var(--accent); font-weight:800; margin-left:6px; }
 
-/* difficulty buttons */
+/* difficulty */
 .diff-btn{ padding:6px 8px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:transparent;color:#cfeeff; font-weight:700; font-size:13px; cursor:pointer; }
 .diff-btn.active{ background:var(--accent); color:#022; border:0; }
 
-/* controls */
+/* buttons */
 .btn{ padding:8px 12px; border-radius:8px; border:0; background:var(--accent); color:#022; font-weight:800; font-size:14px; }
 .btn.ghost{ background:transparent; color:#cfeeff; border:1px solid rgba(255,255,255,0.06); }
 
@@ -81,13 +93,11 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#02151a,#052a33
     </header>
 
     <section class="boards-container" id="boardsContainer">
-      <!-- Player board -->
       <div class="board-wrap" id="playerWrap">
         <div class="coords-top" id="coordsTop"></div>
         <div class="board" id="playerBoard"></div>
       </div>
 
-      <!-- Enemy board (hidden until Start) -->
       <div class="board-wrap" id="enemyWrap" style="display:none;">
         <div style="position:absolute; left:0; top:calc(var(--label-offset) * -0.9); width:100%; text-align:center; color:var(--muted); font-weight:700;">Поле противника</div>
         <div class="coords-top" id="coordsTopEnemy" style="top:calc(var(--label-offset));"></div>
@@ -96,7 +106,6 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#02151a,#052a33
     </section>
   </div>
 
-  <!-- bottom panel -->
   <div class="panel-bottom" id="panel">
     <div class="panel-row">
       <div style="font-size:14px;color:var(--muted)">Панель кораблей</div>
@@ -115,7 +124,6 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#02151a,#052a33
         <button id="resetBtn" class="btn ghost">Сброс</button>
       </div>
       <div style="display:flex;gap:8px">
-        <!-- rotation removed as requested -->
         <button id="startBtn" class="btn" disabled>Старт</button>
       </div>
     </div>
@@ -125,14 +133,14 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#02151a,#052a33
   <div class="confetti-root" id="confettiRoot"></div>
 
 <script>
-/* ====== CONFIG ====== */
-const CELL = 35; // px
-const SHIP_HEIGHT = 35; // px
+/* CONFIG */
+const CELL = 35;
+const SHIP_HEIGHT = 35;
 const SHIP_SPEC = [
-  { size: 4, count: 1, key: 'ship11', name:'Линкор', width: 4 * CELL },   // 140x35
-  { size: 3, count: 2, key: 'ship22', name:'Крейсер', width: 3 * CELL },  // 105x35
-  { size: 2, count: 3, key: 'ship33', name:'Эсминец', width: 2 * CELL },  // 70x35
-  { size: 1, count: 4, key: 'ship44', name:'Катер', width: 1 * CELL }     // 35x35
+  { size: 4, count: 1, key: 'ship1', name:'Линкор', width: 4 * CELL },
+  { size: 3, count: 2, key: 'ship2', name:'Крейсер', width: 3 * CELL },
+  { size: 2, count: 3, key: 'ship3', name:'Эсминец', width: 2 * CELL },
+  { size: 1, count: 4, key: 'ship4', name:'Катер', width: 1 * CELL }
 ];
 
 const IMG_BASE = 'assets/ships/';
@@ -146,7 +154,7 @@ const IMG = {
   explosion: 'assets/explosion.png'
 };
 
-/* ====== STATE ====== */
+/* STATE */
 const playerBoardEl = document.getElementById('playerBoard');
 const enemyBoardEl  = document.getElementById('enemyBoard');
 const coordsTop = document.getElementById('coordsTop');
@@ -157,29 +165,12 @@ const startBtn = document.getElementById('startBtn');
 const autoBtn = document.getElementById('autoBtn');
 const resetBtn = document.getElementById('resetBtn');
 
-let playerCells = [];
-let enemyCells = [];
-let playerState = []; // {ship, hit, miss, shipRef}
-let enemyState = [];
-let pool = {};
-let placedShips = [];
-let enemyShips = [];
-let selectedSize = null;
-let autoLocked = false;
-let gameStarted = false;
-let playerTurn = true;
-let difficulty = 'medium';
+let playerCells = [], enemyCells = [];
+let playerState = [], enemyState = [];
+let pool = {}, placedShips = [], enemyShips = [];
+let selectedSize = null, autoLocked = false, gameStarted = false, playerTurn = true, difficulty = 'medium';
 
-/* ====== INIT BUILDERS ====== */
-function buildTopLabels(container){
-  container.innerHTML = '';
-  for(let i=1;i<=10;i++){
-    const d = document.createElement('div');
-    d.textContent = 'А Б В Г Д Е Ж З И К'.split('  ')[i-1] || i; // user earlier used Cyrillic; but labels top numeric preferable - we will show numbers top as requested originally
-    // But user wanted letters left and numbers right earlier; final requirement was top labels numbers; we'll show numbers
-  }
-}
-// We'll use numbers 1..10 at top (user asked top labels numeric earlier)
+/* BUILDERS */
 function buildTopNumbers(container){
   container.innerHTML = '';
   for(let i=1;i<=10;i++){
@@ -189,11 +180,9 @@ function buildTopNumbers(container){
     container.appendChild(d);
   }
 }
-
 function buildGrid(boardEl, cellsArray, stateArray){
   boardEl.innerHTML = '';
-  cellsArray.length = 0;
-  stateArray.length = 0;
+  cellsArray.length = 0; stateArray.length = 0;
   for(let i=0;i<100;i++){
     const c = document.createElement('div');
     c.className = 'cell';
@@ -204,25 +193,23 @@ function buildGrid(boardEl, cellsArray, stateArray){
   }
 }
 
-/* ====== Panel (aggregates) ====== */
+/* PANEL */
 function buildPool(){
   aggregatesEl.innerHTML = '';
   pool = {};
   for(const s of SHIP_SPEC) pool[s.size] = s.count;
   for(const s of SHIP_SPEC) renderAgg(s);
 }
-
 function renderAgg(spec){
   if(pool[spec.size] <= 0) return;
-  const row = document.createElement('div');
-  row.className = 'agg';
-  row.dataset.size = spec.size;
-
+  const row = document.createElement('div'); row.className = 'agg'; row.dataset.size = spec.size;
   const prev = document.createElement('div'); prev.className = 'preview';
-  prev.style.backgroundImage = `url('${IMG[spec.key]}')`;
-  prev.style.backgroundSize = `${spec.width}px ${SHIP_HEIGHT}px`; // ensure preview uses correct aspect roughly
+  const pimg = document.createElement('img'); pimg.src = IMG[spec.key]; pimg.alt = spec.name; pimg.style.maxHeight='100%'; pimg.style.maxWidth='100%';
+  // rotate preview to horizontal so user sees orientation: small rotate for preview
+  pimg.style.transform = 'rotate(90deg)';
+  prev.appendChild(pimg);
 
-  const meta = document.createElement('div'); meta.className = 'meta';
+  const meta = document.createElement('div'); meta.className='meta';
   meta.innerHTML = `<div style="font-weight:700">${spec.name}</div><div class="small">Осталось: <span class="count" id="count-${spec.size}">${pool[spec.size]}</span></div>`;
 
   row.appendChild(prev); row.appendChild(meta);
@@ -233,33 +220,28 @@ function renderAgg(spec){
     selectedSize = spec.size;
     document.querySelectorAll('.agg').forEach(x=>x.style.outline='none');
     row.style.outline = '2px solid rgba(31,182,255,0.45)';
-    setHint(`Выбрано: ${spec.name} (${spec.size}). Тапните по клетке на поле для размещения.`);
+    setHint(`Выбрано: ${spec.name} (${spec.size}). Тапните по клетке на поле.`);
   });
 }
 
-/* ====== Helpers ====== */
+/* HELPERS */
 function setHint(t){ hintEl.textContent = t; }
 function idxToRC(i){ return { r: Math.floor(i/10), c: i % 10 }; }
 function rcToIdx(r,c){ return r*10 + c; }
 function isInside(r,c){ return r>=0 && r<10 && c>=0 && c<10; }
 function getWidthBySize(size){ const spec = SHIP_SPEC.find(s=>s.size===size); return spec ? spec.width : size*CELL; }
 
-/* placement rules: no adjacency (including diagonal) */
+/* VALIDATION (no adjacency, horizontal only) */
 function canPlace(arrState, index, size){
   const {r,c} = idxToRC(Number(index));
-  // bounds
   if(c + size - 1 > 9) return false;
-  // check cells
   for(let k=0;k<size;k++){
-    const rr = r;
-    const cc = c + k;
+    const rr=r, cc=c+k;
     if(arrState[rcToIdx(rr,cc)].ship) return false;
   }
-  // adjacency: check one cell around entire ship
   for(let k=-1;k<=size;k++){
     for(let dy=-1;dy<=1;dy++){
-      const rr = r + dy;
-      const cc = c + k;
+      const rr=r+dy, cc=c+k;
       if(isInside(rr,cc)){
         if(arrState[rcToIdx(rr,cc)].ship) return false;
       }
@@ -268,21 +250,40 @@ function canPlace(arrState, index, size){
   return true;
 }
 
-/* place ship */
+/* PLACE: create container and rotated img inside */
 function placeShip(boardCells, arrState, boardEl, index, size, owner='player', reveal=false){
   const {r,c} = idxToRC(Number(index));
   const left = c * CELL;
   const top = r * CELL;
+  const width = getWidthBySize(size);
   const el = document.createElement('div');
   el.className = 'placed-ship';
   el.style.left = left + 'px';
-  el.style.top = top + 'px';
-  el.style.width = getWidthBySize(size) + 'px';
+  el.style.top  = top + 'px';
+  el.style.width = width + 'px';
   el.style.height = SHIP_HEIGHT + 'px';
-  // set bg
+  el.style.pointerEvents='none';
+  el.style.overflow='visible';
+
+  // Insert <img> with original vertical image and rotate it 90deg so it becomes horizontal.
+  // Source image is vertical: e.g. 35px width x (size*35) px height.
   const spec = SHIP_SPEC.find(s=>s.size===size);
-  if(spec && IMG[spec.key]) el.style.backgroundImage = `url('${IMG[spec.key]}')`;
-  el.style.backgroundSize = `${getWidthBySize(size)}px ${SHIP_HEIGHT}px`;
+  if(spec && IMG[spec.key]){
+    const img = document.createElement('img');
+    img.src = IMG[spec.key];
+    img.alt = spec.name;
+    // The source image is vertical: width = SHIP_HEIGHT, height = width (size*CELL).
+    // To rotate it to horizontal we set img width = SHIP_HEIGHT px and img height = width px, then rotate +90deg
+    img.style.width = SHIP_HEIGHT + 'px';
+    img.style.height = width + 'px';
+    img.style.objectFit = 'contain';
+    // rotate 90deg and shift so top-left of rotated image aligns with container top-left
+    // After rotation: we translate up by (width - SHIP_HEIGHT) to align
+    img.style.transform = `rotate(90deg) translate(0, -${width - SHIP_HEIGHT}px)`;
+    img.style.transformOrigin = 'left top';
+    img.draggable = false;
+    el.appendChild(img);
+  }
 
   boardEl.appendChild(el);
 
@@ -308,20 +309,20 @@ function placeShip(boardCells, arrState, boardEl, index, size, owner='player', r
   return shipObj;
 }
 
-/* clear & preview highlights */
+/* preview & highlights */
 function clearHighlights(cells){ cells.forEach(c=>c.classList.remove('valid','invalid')); }
 function highlightPreview(cells, index, size){
   clearHighlights(cells);
   const {r,c} = idxToRC(Number(index));
   for(let k=0;k<size;k++){
-    const rr = r; const cc = c + k;
+    const rr=r, cc=c+k;
     if(!isInside(rr,cc)) continue;
     const id = rcToIdx(rr,cc);
     if(canPlace(playerState, index, size)) cells[id].classList.add('valid'); else cells[id].classList.add('invalid');
   }
 }
 
-/* attach events to player cells (placement) */
+/* EVENTS: placement on player board */
 function attachPlayerCellEvents(){
   playerCells.forEach(cell=>{
     cell.addEventListener('pointermove', (e)=>{
@@ -348,7 +349,7 @@ function attachPlayerCellEvents(){
   });
 }
 
-/* update counts and remove aggregate if zero */
+/* update counts */
 function updateCounts(){
   for(const s of SHIP_SPEC){
     const el = document.getElementById('count-'+s.size);
@@ -363,7 +364,6 @@ function updateCounts(){
 
 /* Auto-place player */
 function autoPlacePlayer(){
-  // clear player's placed ships visually & state
   placedShips.forEach(s=>s.el && s.el.remove());
   placedShips = [];
   playerState = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipRef:null}));
@@ -393,7 +393,6 @@ function autoPlacePlayer(){
 
 /* Auto-place enemy */
 function autoPlaceEnemy(){
-  // clear enemy
   enemyShips.forEach(s=>s.el && s.el.remove());
   enemyShips = [];
   enemyState = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipRef:null}));
@@ -414,7 +413,7 @@ function autoPlaceEnemy(){
   }
 }
 
-/* Shooting visuals */
+/* render hit/miss */
 function renderHit(cellEl){
   const svgns = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(svgns,'svg'); svg.setAttribute('viewBox','0 0 48 48'); svg.classList.add('hit-svg');
@@ -422,7 +421,6 @@ function renderHit(cellEl){
   const l2 = document.createElementNS(svgns,'line'); l2.setAttribute('x1','42'); l2.setAttribute('y1','6'); l2.setAttribute('x2','6'); l2.setAttribute('y2','42'); l2.setAttribute('stroke','white'); l2.setAttribute('stroke-width','3'); l2.setAttribute('stroke-linecap','round');
   svg.appendChild(l1); svg.appendChild(l2); cellEl.appendChild(svg);
 }
-
 function renderMiss(cellEl){
   cellEl.classList.add('miss');
   if(IMG.miss){
@@ -431,7 +429,7 @@ function renderMiss(cellEl){
   }
 }
 
-/* Player shoots at enemy */
+/* shooting */
 function playerShoot(idx){
   if(!gameStarted || !playerTurn) return;
   if(enemyState[idx].hit || enemyState[idx].miss) return;
@@ -448,14 +446,13 @@ function playerShoot(idx){
   }
 }
 
-/* Bot move */
+/* bot */
 function botMove(){
   const avail = playerCells.map((c,i)=>i).filter(i=> !playerState[i].hit && !playerState[i].miss);
   if(avail.length===0) return;
   let idx;
   if(difficulty === 'easy') idx = avail[Math.floor(Math.random()*avail.length)];
   else if(difficulty === 'hard'){
-    // try near hits
     const hits = playerState.map((s,i)=> s.hit ? i : -1).filter(x=>x>=0);
     let found=-1;
     for(const h of hits){
@@ -483,19 +480,17 @@ function botMove(){
   }
 }
 
-/* Sunk checking */
+/* sunk/win */
 function checkSunk(list, arrState, owner){
   for(const sh of list){
     if(sh.sunk) continue;
     const allHit = sh.cells.every(i => arrState[i].hit);
     if(allHit){
       sh.sunk = true;
-      if(owner==='enemy'){ sh.el.style.opacity = 1; sh.el.style.filter=''; } // reveal enemy ship
+      if(owner==='enemy'){ sh.el.style.opacity = 1; sh.el.style.filter=''; }
     }
   }
 }
-
-/* Win checks */
 function checkWinEnemy(){ return !enemyState.some(s=>s.ship && !s.hit); }
 function checkWinPlayer(){ return !playerState.some(s=>s.ship && !s.hit); }
 
@@ -508,7 +503,7 @@ function finish(playerWon){
   launchConfetti(playerWon?200:80, playerWon?6000:3000);
 }
 
-/* confetti simple */
+/* confetti */
 function launchConfetti(count=80, dur=4000){
   const root = document.getElementById('confettiRoot'); root.innerHTML='';
   for(let i=0;i<count;i++){
@@ -521,20 +516,17 @@ function launchConfetti(count=80, dur=4000){
   }
 }
 
-/* ====== Controls wiring ====== */
+/* controls */
 document.getElementById('autoBtn').addEventListener('click', ()=>{ if(gameStarted) return; autoPlacePlayer(); autoPlaceEnemy(); autoLocked=true; setHint('Авторасстановка готова. Нажмите Старт.'); startBtn.disabled=false; });
 document.getElementById('resetBtn').addEventListener('click', ()=>{ init(); setHint('Сброшено'); });
 startBtn.addEventListener('click', ()=>{
   if(Object.values(pool).some(v=>v>0)){ setHint('Разместите все корабли прежде чем стартовать'); return; }
-  // show enemy board and enable shooting
   document.getElementById('enemyWrap').style.display = 'block';
   gameStarted = true; playerTurn = true;
   setHint('Игра началась. Ваш ход.');
   autoPlaceEnemy();
   startBtn.disabled = true;
 });
-
-// difficulty buttons
 document.querySelectorAll('.diff-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.diff-btn').forEach(x=>x.classList.remove('active'));
@@ -543,40 +535,22 @@ document.querySelectorAll('.diff-btn').forEach(btn=>{
     setHint('Сложность: ' + difficulty);
   });
 });
-
-// enemy cell clicks -> shooting
-function attachEnemyCellEvents(){
-  enemyCells.forEach(cell=>{
-    cell.addEventListener('click', ()=>{
-      const idx = Number(cell.dataset.index);
-      playerShoot(idx);
-    });
-  });
-}
-
-/* replay */
+function attachEnemyCellEvents(){ enemyCells.forEach(cell=>{ cell.addEventListener('click', ()=>{ const idx = Number(cell.dataset.index); playerShoot(idx); }); }); }
 document.getElementById('replayBtn').addEventListener('click', ()=>{ init(); document.getElementById('endOverlay').classList.remove('show'); });
 
-/* ====== Init everything ====== */
+/* INIT */
 function init(){
-  // top numbers
   buildTopNumbers(coordsTop);
   buildTopNumbers(coordsTopEnemy);
 
-  // grids
   buildGrid(playerBoardEl, playerCells, playerState);
   buildGrid(enemyBoardEl, enemyCells, enemyState);
 
-  // pool
   buildPool();
 
-  // attach events for placement
   attachPlayerCellEvents();
-
-  // attach enemy click after grid built
   attachEnemyCellEvents();
 
-  // reset state flags
   placedShips.forEach(s=>s.el && s.el.remove()); placedShips = [];
   enemyShips.forEach(s=>s.el && s.el.remove()); enemyShips = [];
   playerState = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipRef:null}));
@@ -588,20 +562,7 @@ function init(){
   startBtn.disabled = true;
   setHint('Выберите корабль внизу и тапните клетку или нажмите Авто.');
 }
-
-/* helper buildTopNumbers used earlier */
-function buildTopNumbers(container){
-  container.innerHTML = '';
-  for(let i=1;i<=10;i++){
-    const d = document.createElement('div');
-    d.textContent = i;
-    d.style.fontSize = getComputedStyle(document.documentElement).getPropertyValue('--label-font');
-    container.appendChild(d);
-  }
-}
-
 init();
-
 </script>
 </body>
 </html>
