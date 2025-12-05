@@ -6,15 +6,19 @@
 <title>Морской бой — моб</title>
 <style>
 :root{
-  --cell:35px;
+  --cell:35px;            /* размер клетки */
   --label-font:16px;
   --label-offset:12px;
   --accent:#1fb6ff;
   --muted:#bcd3eb;
   --bg:#041827;
+  --panel:#0a2b30;
   --miss-gray:#6b6f76;
   --ship-h:35px;
-  --gap:2px; /* grid gap used in CSS and JS */
+  --gap:2px;              /* gap между клетками (должен совпадать с CSS grid gap) */
+  --highlight-ok: #7CFF00; /* выбранный зелёный (вариант B) */
+  --highlight-ok-width: 3px;
+  --highlight-bad: rgba(255,50,50,0.18);
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;background:linear-gradient(180deg,#02151a,#052a33);font-family:Inter,Segoe UI,Arial;color:#eaf6ff;-webkit-tap-highlight-color:transparent}
@@ -23,23 +27,28 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#02151a,#052a33
 .title{font-size:18px;margin:0}
 .hint{font-size:13px;color:var(--muted);margin-top:4px}
 
-/* boards */
+/* boards container */
 .boards-container{ display:flex; flex-direction:column; align-items:center; gap:12px; padding:8px; }
-.board-wrap{ width: calc(var(--cell) * 10); position:relative; padding-top: calc(var(--label-offset) + var(--label-font)); }
-.coords-top{ position:absolute; left:0; top:calc(var(--label-offset)); width:calc(var(--cell) * 10); display:grid; grid-template-columns: repeat(10, var(--cell)); pointer-events:none; color:var(--muted); font-weight:700; font-size:var(--label-font); text-align:center; z-index:5; }
-.board{ width: calc(var(--cell) * 10); height: calc(var(--cell) * 10); display:grid; grid-template-columns: repeat(10, var(--cell)); grid-template-rows: repeat(10, var(--cell)); gap:var(--gap); background:linear-gradient(180deg,#083241,#042e2a); border-radius:8px; overflow:visible; box-shadow:0 8px 20px rgba(0,0,0,0.6); position:relative; }
+
+/* wrapper */
+.board-wrap{ width: calc((var(--cell) + var(--gap)) * 10 - var(--gap)); position:relative; padding-top: calc(var(--label-offset) + var(--label-font)); }
+.coords-top{ position:absolute; left:0; top:calc(var(--label-offset)); width:100%; display:grid; grid-template-columns: repeat(10, calc(var(--cell) + var(--gap) )); grid-column-gap: var(--gap); pointer-events:none; color:var(--muted); font-weight:700; font-size:var(--label-font); text-align:center; z-index:5; padding-left:0; }
+.board{ width:100%; height: calc((var(--cell) + var(--gap)) * 10 - var(--gap)); display:grid; grid-template-columns: repeat(10, var(--cell)); grid-template-rows: repeat(10, var(--cell)); gap:var(--gap); background:linear-gradient(180deg,#083241,#042e2a); border-radius:8px; overflow:visible; box-shadow:0 8px 20px rgba(0,0,0,0.6); position:relative; padding:6px; }
 
 /* cells */
 .cell{ width:var(--cell); height:var(--cell); background:linear-gradient(180deg,#08464a,#053738); border-radius:6px; border:1px solid rgba(255,255,255,0.03); position:relative; display:block; }
-.cell.valid{ box-shadow:0 0 0 3px rgba(0,200,0,0.14) inset; }
-.cell.invalid{ box-shadow:0 0 0 3px rgba(255,0,0,0.12) inset; }
+.cell.valid{ box-shadow: inset 0 0 0 var(--highlight-ok-width) var(--highlight-ok); }
+.cell.invalid{ box-shadow: inset 0 0 0 var(--highlight-ok-width) var(--highlight-bad); }
 .cell.occupied{ background-color:transparent; }
 
-/* placed ship container and rotated image */
+/* placed ship container and rotated image handling
+   We position container exactly to cells, and inside put the original vertical PNG rotated 90deg,
+   so the sprite becomes horizontal without distortion.
+*/
 .placed-ship{ position:absolute; pointer-events:none; overflow:visible; z-index:20; }
 .placed-ship img{ position:absolute; left:0; top:0; display:block; user-select:none; -webkit-user-drag:none; transform-origin:left top; }
 
-/* hit/miss */
+/* hit/miss visuals */
 .cell.miss{ background: var(--miss-gray) !important; }
 .hit-svg{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:30; }
 
@@ -59,7 +68,7 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#02151a,#052a33
 .diff-btn{ padding:6px 8px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:transparent;color:#cfeeff; font-weight:700; font-size:13px; cursor:pointer; }
 .diff-btn.active{ background:var(--accent); color:#022; border:0; }
 
-/* buttons */
+/* controls */
 .btn{ padding:8px 12px; border-radius:8px; border:0; background:var(--accent); color:#022; font-weight:800; font-size:14px; }
 .btn.ghost{ background:transparent; color:#cfeeff; border:1px solid rgba(255,255,255,0.06); }
 
@@ -83,11 +92,13 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#02151a,#052a33
     </header>
 
     <section class="boards-container" id="boardsContainer">
+      <!-- Player board -->
       <div class="board-wrap" id="playerWrap">
         <div class="coords-top" id="coordsTop"></div>
         <div class="board" id="playerBoard"></div>
       </div>
 
+      <!-- Enemy board (hidden until Start) -->
       <div class="board-wrap" id="enemyWrap" style="display:none;">
         <div style="position:absolute; left:0; top:calc(var(--label-offset) * -0.9); width:100%; text-align:center; color:var(--muted); font-weight:700;">Поле противника</div>
         <div class="coords-top" id="coordsTopEnemy" style="top:calc(var(--label-offset));"></div>
@@ -96,6 +107,7 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#02151a,#052a33
     </section>
   </div>
 
+  <!-- bottom panel -->
   <div class="panel-bottom" id="panel">
     <div class="panel-row">
       <div style="font-size:14px;color:var(--muted)">Панель кораблей</div>
@@ -123,15 +135,16 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#02151a,#052a33
   <div class="confetti-root" id="confettiRoot"></div>
 
 <script>
-/* CONFIG */
+/* ====== CONFIG ====== */
 const CELL = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cell')) || 35;
-const GAP = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--gap')) || 2;
+const GAP  = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--gap')) || 2;
 const SHIP_HEIGHT = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--ship-h')) || 35;
+
 const SHIP_SPEC = [
-  { size: 4, count: 1, key: 'ship1', name:'Линкор' },
-  { size: 3, count: 2, key: 'ship2', name:'Крейсер' },
-  { size: 2, count: 3, key: 'ship3', name:'Эсминец' },
-  { size: 1, count: 4, key: 'ship4', name:'Катер' }
+  { size: 4, count: 1, key: 'ship1', name:'Линкор', width: 4 * CELL },
+  { size: 3, count: 2, key: 'ship2', name:'Крейсер', width: 3 * CELL },
+  { size: 2, count: 3, key: 'ship3', name:'Эсминец', width: 2 * CELL },
+  { size: 1, count: 4, key: 'ship4', name:'Катер', width: 1 * CELL }
 ];
 
 const IMG_BASE = 'assets/ships/';
@@ -145,7 +158,7 @@ const IMG = {
   explosion: 'assets/explosion.png'
 };
 
-/* STATE */
+/* ====== STATE ====== */
 const playerBoardEl = document.getElementById('playerBoard');
 const enemyBoardEl  = document.getElementById('enemyBoard');
 const coordsTop = document.getElementById('coordsTop');
@@ -156,20 +169,28 @@ const startBtn = document.getElementById('startBtn');
 const autoBtn = document.getElementById('autoBtn');
 const resetBtn = document.getElementById('resetBtn');
 
-let playerCells = [], enemyCells = [];
-let playerState = [], enemyState = [];
-let pool = {}, placedShips = [], enemyShips = [];
-let selectedSize = null, autoLocked = false, gameStarted = false, playerTurn = true, difficulty = 'medium';
+let playerCells = [];
+let enemyCells = [];
+let playerState = []; // {ship, hit, miss, shipRef}
+let enemyState = [];
+let pool = {};
+let placedShips = [];
+let enemyShips = [];
+let selectedSize = null;
+let autoLocked = false;
+let gameStarted = false;
+let playerTurn = true;
+let difficulty = 'medium';
 
-/* HELPERS */
+/* ====== HELPERS ====== */
 function setHint(t){ hintEl.textContent = t; }
 function idxToRC(i){ return { r: Math.floor(i/10), c: i % 10 }; }
 function rcToIdx(r,c){ return r*10 + c; }
 function isInside(r,c){ return r>=0 && r<10 && c>=0 && c<10; }
 function cellFullPx(){ return CELL + GAP; }
-function widthForSize(size){ return size * CELL + (size - 1) * GAP; } // consider gap between cells
+function widthForSize(size){ return size * CELL + (size - 1) * GAP; } // width including gaps
 
-/* BUILD UI */
+/* ====== BUILDERS ====== */
 function buildTopNumbers(container){
   container.innerHTML = '';
   for(let i=1;i<=10;i++){
@@ -179,9 +200,11 @@ function buildTopNumbers(container){
     container.appendChild(d);
   }
 }
+
 function buildGrid(boardEl, cellsArray, stateArray){
   boardEl.innerHTML = '';
-  cellsArray.length = 0; stateArray.length = 0;
+  cellsArray.length = 0;
+  stateArray.length = 0;
   for(let i=0;i<100;i++){
     const c = document.createElement('div');
     c.className = 'cell';
@@ -192,25 +215,32 @@ function buildGrid(boardEl, cellsArray, stateArray){
   }
 }
 
-/* PANEL */
+/* ====== Panel (aggregates) ====== */
 function buildPool(){
   aggregatesEl.innerHTML = '';
   pool = {};
   for(const s of SHIP_SPEC) pool[s.size] = s.count;
   for(const s of SHIP_SPEC) renderAgg(s);
 }
+
 function renderAgg(spec){
   if(pool[spec.size] <= 0) return;
-  const row = document.createElement('div'); row.className = 'agg'; row.dataset.size = spec.size;
+  const row = document.createElement('div');
+  row.className = 'agg';
+  row.dataset.size = spec.size;
+
   const prev = document.createElement('div'); prev.className = 'preview';
   const pimg = document.createElement('img'); pimg.src = IMG[spec.key]; pimg.alt = spec.name;
   pimg.style.maxWidth='100%'; pimg.style.maxHeight='100%';
-  pimg.style.transform = 'rotate(90deg)'; // preview shown horizontal
+  pimg.style.transform = 'rotate(90deg)'; // show horizontal in preview
   prev.appendChild(pimg);
-  const meta = document.createElement('div'); meta.className='meta';
+
+  const meta = document.createElement('div'); meta.className = 'meta';
   meta.innerHTML = `<div style="font-weight:700">${spec.name}</div><div class="small">Осталось: <span class="count" id="count-${spec.size}">${pool[spec.size]}</span></div>`;
+
   row.appendChild(prev); row.appendChild(meta);
   aggregatesEl.appendChild(row);
+
   row.addEventListener('click', ()=>{
     if(autoLocked) return;
     selectedSize = spec.size;
@@ -220,17 +250,19 @@ function renderAgg(spec){
   });
 }
 
-/* VALIDATION */
+/* ====== Placement rules: no adjacency (including diagonal) ====== */
 function canPlace(arrState, index, size){
   const {r,c} = idxToRC(Number(index));
   if(c + size - 1 > 9) return false;
   for(let k=0;k<size;k++){
-    const rr=r, cc=c+k;
+    const rr = r;
+    const cc = c + k;
     if(arrState[rcToIdx(rr,cc)].ship) return false;
   }
   for(let k=-1;k<=size;k++){
     for(let dy=-1;dy<=1;dy++){
-      const rr=r+dy, cc=c+k;
+      const rr = r + dy;
+      const cc = c + k;
       if(isInside(rr,cc)){
         if(arrState[rcToIdx(rr,cc)].ship) return false;
       }
@@ -239,12 +271,18 @@ function canPlace(arrState, index, size){
   return true;
 }
 
-/* PLACE SHIP: now accounts for gap and rotates vertical PNG correctly */
+/* ====== Place ship ======
+   Container placed at exact top-left of first cell (left/top computed with cellFullPx)
+   Container width = widthForSize(size)
+   Inside container we place the original vertical PNG and rotate it 90deg,
+   then translate it so its top-left matches the container origin.
+*/
 function placeShip(boardCells, arrState, boardEl, index, size, owner='player', reveal=false){
   const {r,c} = idxToRC(Number(index));
   const left = c * cellFullPx();
-  const top  = r * cellFullPx();
+  const top = r * cellFullPx();
   const width = widthForSize(size);
+
   const el = document.createElement('div');
   el.className = 'placed-ship';
   el.style.left = left + 'px';
@@ -258,15 +296,14 @@ function placeShip(boardCells, arrState, boardEl, index, size, owner='player', r
     const img = document.createElement('img');
     img.src = IMG[spec.key];
     img.alt = spec.name;
-    // original PNG is vertical: 35 x (size*35).
-    // To draw it horizontal without distortion:
-    //  — set img width = SHIP_HEIGHT, img height = width,
-    //  — rotate 90deg, then translate up by 100% so rotated image fits container.
-    img.style.width = `${SHIP_HEIGHT}px`;
-    img.style.height = `${width}px`;
+    // original vertical: width = SHIP_HEIGHT, height = size*CELL (+ gaps ideally)
+    // We'll set img width = SHIP_HEIGHT, img height = width (container width), then rotate and shift.
+    img.style.width = SHIP_HEIGHT + 'px';
+    img.style.height = width + 'px';
     img.style.objectFit = 'contain';
     img.style.transformOrigin = 'left top';
-    // rotate and shift so left-top aligns
+    // rotate 90deg; after rotation the image's top-left will be at different place,
+    // translateY(-100%) aligns it so it fits exactly in container.
     img.style.transform = `rotate(90deg) translateY(-100%)`;
     img.draggable = false;
     el.appendChild(img);
@@ -296,18 +333,20 @@ function placeShip(boardCells, arrState, boardEl, index, size, owner='player', r
   return shipObj;
 }
 
-/* preview & events */
+/* ====== Highlights preview ====== */
 function clearHighlights(cells){ cells.forEach(c=>c.classList.remove('valid','invalid')); }
 function highlightPreview(cells, index, size){
   clearHighlights(cells);
   const {r,c} = idxToRC(Number(index));
   for(let k=0;k<size;k++){
-    const rr=r, cc=c+k;
+    const rr = r; const cc = c + k;
     if(!isInside(rr,cc)) continue;
     const id = rcToIdx(rr,cc);
     if(canPlace(playerState, index, size)) cells[id].classList.add('valid'); else cells[id].classList.add('invalid');
   }
 }
+
+/* ====== Attach player cell events (placement) ====== */
 function attachPlayerCellEvents(){
   playerCells.forEach(cell=>{
     cell.addEventListener('pointermove', (e)=>{
@@ -334,12 +373,243 @@ function attachPlayerCellEvents(){
   });
 }
 
-/* counts, auto placement, enemy placement, shooting, bot, finish, confetti — same logic as раньше */
-/* ... (оставляю остальную логику без изменений; вставьте её из предыдущей версии) ... */
+/* ====== Update counts ====== */
+function updateCounts(){
+  for(const s of SHIP_SPEC){
+    const el = document.getElementById('count-'+s.size);
+    if(el) el.textContent = pool[s.size];
+    if(pool[s.size] <= 0){
+      const row = document.querySelector(`.agg[data-size="${s.size}"]`);
+      if(row) row.remove();
+      if(selectedSize===s.size) selectedSize=null;
+    }
+  }
+}
 
-/* For brevity: reuse the exact functions from previous file for renderHit/renderMiss, botMove, checkSunk, finish, confetti, controls wiring and init.
-   Important: they rely on CELL/GAP/widthForSize/placeShip positions, which уже скорректированы.
-*/
+/* ====== Auto-place player ====== */
+function autoPlacePlayer(){
+  placedShips.forEach(s=>s.el && s.el.remove());
+  placedShips = [];
+  playerState = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipRef:null}));
+  playerCells.forEach(c=> c.className='cell' );
+  pool = {}; for(const s of SHIP_SPEC) pool[s.size] = s.count;
+  const sizes = [];
+  for(const s of SHIP_SPEC) for(let i=0;i<s.count;i++) sizes.push(s.size);
+  for(const size of sizes){
+    let placed=false, attempts=0;
+    while(!placed && attempts<2000){
+      attempts++;
+      const r = Math.floor(Math.random()*10);
+      const c = Math.floor(Math.random()*(10 - size + 1));
+      const idx = rcToIdx(r,c);
+      if(canPlace(playerState, idx, size)){
+        placeShip(playerCells, playerState, playerBoardEl, idx, size, 'player');
+        pool[size]--; placed=true;
+      }
+    }
+  }
+  aggregatesEl.innerHTML=''; for(const s of SHIP_SPEC) if(pool[s.size]>0) renderAgg(s);
+  updateCounts();
+  autoLocked = true;
+  startBtn.disabled = false;
+  setHint('Авторасстановка выполнена');
+}
+
+/* ====== Auto-place enemy ====== */
+function autoPlaceEnemy(){
+  enemyShips.forEach(s=>s.el && s.el.remove());
+  enemyShips = [];
+  enemyState = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipRef:null}));
+  const sizes = [];
+  for(const s of SHIP_SPEC) for(let i=0;i<s.count;i++) sizes.push(s.size);
+  for(const size of sizes){
+    let placed=false, attempts=0;
+    while(!placed && attempts<2000){
+      attempts++;
+      const r = Math.floor(Math.random()*10);
+      const c = Math.floor(Math.random()*(10 - size + 1));
+      const idx = rcToIdx(r,c);
+      if(canPlace(enemyState, idx, size)){
+        placeShip(enemyCells, enemyState, enemyBoardEl, idx, size, 'enemy', false);
+        placed = true;
+      }
+    }
+  }
+}
+
+/* ====== Render hit/miss visuals ====== */
+function renderHit(cellEl){
+  const svgns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgns,'svg'); svg.setAttribute('viewBox','0 0 48 48'); svg.classList.add('hit-svg');
+  const l1 = document.createElementNS(svgns,'line'); l1.setAttribute('x1','6'); l1.setAttribute('y1','6'); l1.setAttribute('x2','42'); l1.setAttribute('y2','42'); l1.setAttribute('stroke','white'); l1.setAttribute('stroke-width','3'); l1.setAttribute('stroke-linecap','round');
+  const l2 = document.createElementNS(svgns,'line'); l2.setAttribute('x1','42'); l2.setAttribute('y1','6'); l2.setAttribute('x2','6'); l2.setAttribute('y2','42'); l2.setAttribute('stroke','white'); l2.setAttribute('stroke-width','3'); l2.setAttribute('stroke-linecap','round');
+  svg.appendChild(l1); svg.appendChild(l2); cellEl.appendChild(svg);
+}
+
+function renderMiss(cellEl){
+  cellEl.classList.add('miss');
+  if(IMG.miss){
+    const img = new Image(); img.src = IMG.miss; img.style.position='absolute'; img.style.left=0; img.style.top=0; img.style.width='100%'; img.style.height='100%'; img.style.objectFit='contain';
+    cellEl.appendChild(img);
+  }
+}
+
+/* ====== Player shoots at enemy ====== */
+function playerShoot(idx){
+  if(!gameStarted || !playerTurn) return;
+  if(enemyState[idx].hit || enemyState[idx].miss) return;
+  if(enemyState[idx].ship){
+    enemyState[idx].hit = true; renderHit(enemyCells[idx]);
+    setHint('Попадание! Продолжайте.');
+    checkSunk(enemyShips, enemyState, 'enemy');
+    if(checkWinEnemy()) finish(true);
+  } else {
+    enemyState[idx].miss = true; renderMiss(enemyCells[idx]);
+    playerTurn = false;
+    setHint('Мимо. Ход бота.');
+    setTimeout(botMove, 600);
+  }
+}
+
+/* ====== Bot move logic ====== */
+function botMove(){
+  const avail = playerCells.map((c,i)=>i).filter(i=> !playerState[i].hit && !playerState[i].miss);
+  if(avail.length===0) return;
+  let idx;
+  if(difficulty === 'easy') idx = avail[Math.floor(Math.random()*avail.length)];
+  else if(difficulty === 'hard'){
+    const hits = playerState.map((s,i)=> s.hit ? i : -1).filter(x=>x>=0);
+    let found=-1;
+    for(const h of hits){
+      const {r,c} = idxToRC(h);
+      const nbs = [[r+1,c],[r-1,c],[r,c+1],[r,c-1]];
+      for(const [nr,nc] of nbs){
+        if(isInside(nr,nc)){
+          const id = rcToIdx(nr,nc);
+          if(!playerState[id].hit && !playerState[id].miss){ found=id; break; }
+        }
+      }
+      if(found>=0) break;
+    }
+    idx = found>=0 ? found : avail[Math.floor(Math.random()*avail.length)];
+  } else idx = avail[Math.floor(Math.random()*avail.length)];
+
+  if(playerState[idx].ship){
+    playerState[idx].hit = true; renderHit(playerCells[idx]);
+    setHint('Бот попал! Бот ходит снова.');
+    setTimeout(botMove, 400);
+    if(checkWinPlayer()) finish(false);
+  } else {
+    playerState[idx].miss = true; renderMiss(playerCells[idx]);
+    playerTurn = true; setHint('Бот промахнулся. Ваш ход.');
+  }
+}
+
+/* ====== Sunk & Win checks ====== */
+function checkSunk(list, arrState, owner){
+  for(const sh of list){
+    if(sh.sunk) continue;
+    const allHit = sh.cells.every(i => arrState[i].hit);
+    if(allHit){
+      sh.sunk = true;
+      if(owner==='enemy'){ sh.el.style.opacity = 1; sh.el.style.filter=''; } // reveal enemy ship
+    }
+  }
+}
+
+function checkWinEnemy(){ return !enemyState.some(s=>s.ship && !s.hit); }
+function checkWinPlayer(){ return !playerState.some(s=>s.ship && !s.hit); }
+
+function finish(playerWon){
+  gameStarted = false;
+  const overlay = document.getElementById('endOverlay');
+  document.getElementById('endTitle').textContent = playerWon ? 'ПОБЕДА!' : 'ПОРАЖЕНИЕ';
+  document.getElementById('endText').textContent = playerWon ? 'Вы потопили все корабли противника.' : 'Ваши корабли потоплены.';
+  overlay.classList.add('show');
+  launchConfetti(playerWon?200:80, playerWon?6000:3000);
+}
+
+/* ====== Confetti simple ====== */
+function launchConfetti(count=80, dur=4000){
+  const root = document.getElementById('confettiRoot'); root.innerHTML='';
+  for(let i=0;i<count;i++){
+    const el = document.createElement('div'); el.style.position='fixed'; el.style.left=Math.random()*100+'vw'; el.style.top=(-10-Math.random()*30)+'vh';
+    const s=(6+Math.random()*8)+'px'; el.style.width=s; el.style.height=s; el.style.background=['#ff4d4f','#ffd666','#69c0ff','#95de64'][Math.floor(Math.random()*4)]; el.style.opacity=0.9; el.style.zIndex=180;
+    root.appendChild(el);
+    const dur2 = dur + Math.random()*1200;
+    el.animate([{transform:'translateY(0)'},{transform:'translateY(' + (window.innerHeight + 400) + 'px)'}],{duration:dur2,easing:'linear'});
+    setTimeout(()=>el.remove(), dur2+80);
+  }
+}
+
+/* ====== Controls wiring ====== */
+document.getElementById('autoBtn').addEventListener('click', ()=>{ if(gameStarted) return; autoPlacePlayer(); autoPlaceEnemy(); autoLocked=true; setHint('Авторасстановка готова. Нажмите Старт.'); startBtn.disabled=false; });
+document.getElementById('resetBtn').addEventListener('click', ()=>{ init(); setHint('Сброшено'); });
+startBtn.addEventListener('click', ()=>{
+  if(Object.values(pool).some(v=>v>0)){ setHint('Разместите все корабли прежде чем стартовать'); return; }
+  document.getElementById('enemyWrap').style.display = 'block';
+  gameStarted = true; playerTurn = true;
+  setHint('Игра началась. Ваш ход.');
+  autoPlaceEnemy();
+  startBtn.disabled = true;
+});
+
+// difficulty buttons
+document.querySelectorAll('.diff-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.diff-btn').forEach(x=>x.classList.remove('active'));
+    btn.classList.add('active');
+    difficulty = btn.dataset.diff;
+    setHint('Сложность: ' + difficulty);
+  });
+});
+
+// enemy cell clicks -> shooting
+function attachEnemyCellEvents(){
+  enemyCells.forEach(cell=>{
+    cell.addEventListener('click', ()=>{
+      const idx = Number(cell.dataset.index);
+      playerShoot(idx);
+    });
+  });
+}
+
+/* replay */
+document.getElementById('replayBtn').addEventListener('click', ()=>{ init(); document.getElementById('endOverlay').classList.remove('show'); });
+
+/* ====== Init everything ====== */
+function init(){
+  // top numbers
+  buildTopNumbers(coordsTop);
+  buildTopNumbers(coordsTopEnemy);
+
+  // grids
+  buildGrid(playerBoardEl, playerCells, playerState);
+  buildGrid(enemyBoardEl, enemyCells, enemyState);
+
+  // pool
+  buildPool();
+
+  // attach events for placement
+  attachPlayerCellEvents();
+
+  // attach enemy click after grid built
+  attachEnemyCellEvents();
+
+  // reset state flags
+  placedShips.forEach(s=>s.el && s.el.remove()); placedShips = [];
+  enemyShips.forEach(s=>s.el && s.el.remove()); enemyShips = [];
+  playerState = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipRef:null}));
+  enemyState  = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipRef:null}));
+  pool = {}; for(const s of SHIP_SPEC) pool[s.size] = s.count;
+  updateCounts();
+  autoLocked=false; gameStarted=false; playerTurn=true; selectedSize=null;
+  document.getElementById('enemyWrap').style.display = 'none';
+  startBtn.disabled = true;
+  setHint('Выберите корабль внизу и тапните клетку или нажмите Авто.');
+}
+
+init();
 
 </script>
 </body>
