@@ -331,15 +331,17 @@ function placeShip(boardCells, arrState, boardEl, index, size, owner='player', r
     el.appendChild(img);
   }
 
-  if(owner === 'player'){
-    el.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      const shipObj = placedShips.find(s => s.el === el);
-      if(shipObj){
-        pickupShip(shipObj);
-      }
-    });
-  }
+  // разрешить переносить корабль только до начала игры
+if (owner === 'player') {
+  el.addEventListener('click', (e)=>{
+    if (gameStarted) return;     // вот эта строка блокирует перемещение после старта
+    e.stopPropagation();
+    const shipObj = placedShips.find(s => s.el === el);
+    if(shipObj){
+      pickupShip(shipObj);
+    }
+  });
+    }
 
   boardEl.appendChild(el);
 
