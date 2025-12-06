@@ -6,7 +6,7 @@
 <title>Морской бой — моб</title>
 <style>
 :root{
-  --cell:35px;            /* размер клетки */
+  --cell:35px;
   --label-font:16px;
   --label-offset:12px;
   --accent:#1fb6ff;
@@ -15,7 +15,7 @@
   --panel:#0a2b30;
   --miss-gray:#6b6f76;
   --ship-h:35px;
-  --gap:2px;              /* gap между клетками */
+  --gap:2px;
   --highlight-ok: #7CFF00;
   --highlight-ok-width: 3px;
   --highlight-bad: rgba(255,50,50,0.18);
@@ -41,14 +41,11 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#02151a,#052a33
 .cell.invalid{ box-shadow: inset 0 0 0 var(--highlight-ok-width) var(--highlight-bad); }
 .cell.occupied{ background-color:transparent; }
 
-/* placed ship container and rotated image handling
-   We position container exactly to cells, and inside put the original vertical PNG rotated 90deg,
-   so the sprite becomes horizontal without distortion.
-*/
-.placed-ship{ position:absolute; pointer-events:auto; overflow:visible; z-index:20; }
+/* placed ship container and rotated image handling */
+.placed-ship{ position:absolute; pointer-events:auto; overflow:visible; z-index:20; touch-action:none; -webkit-user-select:none; user-select:none; }
 .placed-ship img{ position:absolute; left:0; top:0; display:block; user-select:none; -webkit-user-drag:none; transform-origin:left top; }
 
-/* highlight selection outline for movable ships */
+/* selected outline for movable ships */
 .placed-ship.selected{ outline: 2px solid rgba(31,182,255,0.6); border-radius:6px; }
 
 /* hit/miss visuals */
@@ -89,7 +86,7 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#02151a,#052a33
     <header class="header">
       <div>
         <div class="title">Морской бой</div>
-        <div class="hint" id="hint">Выберите корабль внизу и тапните по клетке</div>
+        <div class="hint" id="hint">Перетащи корабль из панели на поле или тапни для выбора.</div>
       </div>
       <div><button id="dummy" class="btn ghost" style="background:transparent;border:0;color:var(--muted)">Главный</button></div>
     </header>
@@ -114,7 +111,7 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#02151a,#052a33
   <div class="panel-bottom" id="panel">
     <div class="panel-row">
       <div style="font-size:14px;color:var(--muted)">Панель кораблей</div>
-      <div style="display:flex;align-items:center;gap:6px">
+      <div style="display:flex;align-items:center;gap:6px" id="diffPanel">
         <button class="diff-btn" data-diff="easy">Лёгкая</button>
         <button class="diff-btn active" data-diff="medium">Средняя</button>
         <button class="diff-btn" data-diff="hard">Сложная</button>
@@ -123,7 +120,7 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#02151a,#052a33
 
     <div class="aggregates" id="aggregates"></div>
 
-    <div style="display:flex;justify-content:space-between;gap:8px">
+    <div style="display:flex;justify-content:space-between;gap:8px" id="controlsRow">
       <div style="display:flex;gap:8px">
         <button id="autoBtn" class="btn">Авто</button>
         <button id="resetBtn" class="btn ghost">Сброс</button>
@@ -144,10 +141,10 @@ const GAP  = parseInt(getComputedStyle(document.documentElement).getPropertyValu
 const SHIP_HEIGHT = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--ship-h')) || 35;
 
 const SHIP_SPEC = [
-  { size: 4, count: 1, key: 'ship1', name:'Линкор', width: 4 * CELL },
-  { size: 3, count: 2, key: 'ship2', name:'Крейсер', width: 3 * CELL },
-  { size: 2, count: 3, key: 'ship3', name:'Эсминец', width: 2 * CELL },
-  { size: 1, count: 4, key: 'ship4', name:'Катер', width: 1 * CELL }
+  { size: 4, count: 1, key: 'ship1', name:'Линкор' },
+  { size: 3, count: 2, key: 'ship2', name:'Крейсер' },
+  { size: 2, count: 3, key: 'ship3', name:'Эсминец' },
+  { size: 1, count: 4, key: 'ship4', name:'Катер' }
 ];
 
 const IMG_BASE = 'assets/ships/';
@@ -171,22 +168,22 @@ const hintEl = document.getElementById('hint');
 const startBtn = document.getElementById('startBtn');
 const autoBtn = document.getElementById('autoBtn');
 const resetBtn = document.getElementById('resetBtn');
+const diffPanel = document.getElementById('diffPanel');
+const controlsRow = document.getElementById('controlsRow');
 
 let playerCells = [];
 let enemyCells = [];
-let playerState = []; // {ship, hit, miss, shipRef}
+let playerState = [];
 let enemyState = [];
 let pool = {};
 let placedShips = [];
 let enemyShips = [];
-let selectedSize = null;
+let draggingSize = null;     // size when dragging from panel
+let draggingPlaced = null;   // shipObj when dragging an existing placed-ship
 let autoLocked = false;
 let gameStarted = false;
 let playerTurn = true;
 let difficulty = 'medium';
-
-/* for moving ships: selected placed ship id (object reference) */
-let selectedPlacedShip = null;
 
 /* ====== HELPERS ====== */
 function setHint(t){ hintEl.textContent = t; }
@@ -194,13 +191,8 @@ function idxToRC(i){ return { r: Math.floor(i/10), c: i % 10 }; }
 function rcToIdx(r,c){ return r*10 + c; }
 function isInside(r,c){ return r>=0 && r<10 && c>=0 && c<10; }
 function cellFullPx(){ return CELL + GAP; }
-function widthForSize(size){ return size * CELL + (size - 1) * GAP; } // width including gaps
-
-/* compute board padding (pixels) - used to offset placed-ship containers */
-function boardPaddingPx(boardEl){
-  const s = getComputedStyle(boardEl);
-  return parseFloat(s.paddingLeft || s.padding || 0) || 0;
-}
+function widthForSize(size){ return size * CELL + (size - 1) * GAP; }
+function boardPaddingPx(boardEl){ const s=getComputedStyle(boardEl); return parseFloat(s.paddingLeft||s.padding||0)||0; }
 
 /* ====== BUILDERS ====== */
 function buildTopNumbers(container){
@@ -240,11 +232,12 @@ function renderAgg(spec){
   const row = document.createElement('div');
   row.className = 'agg';
   row.dataset.size = spec.size;
+  row.draggable = true; // draggable from panel
 
   const prev = document.createElement('div'); prev.className = 'preview';
   const pimg = document.createElement('img'); pimg.src = IMG[spec.key]; pimg.alt = spec.name;
   pimg.style.maxWidth='100%'; pimg.style.maxHeight='100%';
-  pimg.style.transform = 'rotate(90deg)'; // show horizontal in preview
+  pimg.style.transform = 'rotate(90deg)';
   prev.appendChild(pimg);
 
   const meta = document.createElement('div'); meta.className = 'meta';
@@ -253,19 +246,31 @@ function renderAgg(spec){
   row.appendChild(prev); row.appendChild(meta);
   aggregatesEl.appendChild(row);
 
+  // click: also select for tap placement
   row.addEventListener('click', ()=>{
     if(autoLocked) return;
-    selectedSize = spec.size;
+    draggingSize = spec.size;
     document.querySelectorAll('.agg').forEach(x=>x.style.outline='none');
     row.style.outline = '2px solid rgba(31,182,255,0.45)';
-    setHint(`Выбрано: ${spec.name} (${spec.size}). Тапните по клетке на поле.`);
-    // clear any placed-ship selection
-    unselectPlacedShip();
+    setHint(`Выбрано: ${spec.name} (${spec.size}). Тяни на поле или тапни клетку.`);
+  });
+
+  // dragstart - begin dragging ship from panel
+  row.addEventListener('dragstart', (e)=>{
+    if(autoLocked) { e.preventDefault(); return; }
+    draggingSize = spec.size;
+    try{ e.dataTransfer.setData('text/plain', 'ship:'+spec.size); }catch(_){}
+    // custom drag image (small)
+    const dragImg = prev.cloneNode(true);
+    dragImg.style.width='60px'; dragImg.style.height='30px'; dragImg.style.position='absolute'; dragImg.style.left='-1000px'; document.body.appendChild(dragImg);
+    try{ e.dataTransfer.setDragImage(dragImg, 30, 15); } catch(e){}
+    setTimeout(()=>{ if(dragImg.parentNode) dragImg.parentNode.removeChild(dragImg); }, 50);
   });
 }
 
 /* ====== Placement rules: no adjacency (including diagonal).
-   allow passing ignoreCells set (array of indexes) to treat them as empty (used for moving) */
+   ignoreCells param allows ignoring existing ship cells (used for moving).
+*/
 function canPlace(arrState, index, size, ignoreCells = []){
   const {r,c} = idxToRC(Number(index));
   if(c + size - 1 > 9) return false;
@@ -288,8 +293,8 @@ function canPlace(arrState, index, size, ignoreCells = []){
   return true;
 }
 
-/* ====== Place ship ======
-   we compute container offset using board padding so container aligns with cells exactly
+/* ====== Place ship (creates placed-ship element).
+   owner='player' or 'enemy'. reveal for enemy reveals appearance.
 */
 function placeShip(boardCells, arrState, boardEl, index, size, owner='player', reveal=false){
   const {r,c} = idxToRC(Number(index));
@@ -301,7 +306,7 @@ function placeShip(boardCells, arrState, boardEl, index, size, owner='player', r
   const el = document.createElement('div');
   el.className = 'placed-ship';
   el.style.left = left + 'px';
-  el.style.top  = top  + 'px';
+  el.style.top  = top + 'px';
   el.style.width = width + 'px';
   el.style.height = SHIP_HEIGHT + 'px';
   el.style.pointerEvents = 'auto';
@@ -320,21 +325,41 @@ function placeShip(boardCells, arrState, boardEl, index, size, owner='player', r
     el.appendChild(img);
   }
 
-  // allow selecting the placed-ship for moving (tap)
+  // if player ship -> make draggable to allow moving
   if(owner === 'player'){
-    el.addEventListener('click',(ev)=>{
+    el.draggable = true;
+    // dragstart for moving
+    el.addEventListener('dragstart', (e)=>{
+      e.stopPropagation();
+      draggingPlaced = placedShips.find(s => s.el === el);
+      if(!draggingPlaced) return;
+      // set data so drop handlers work
+      try{ e.dataTransfer.setData('text/plain', 'move:'+draggingPlaced.id); }catch(_){}
+      // temporary mark its cells as not blocking (we'll pass ignoreCells during canPlace)
+      setHint('Перетаскивайте корабль на новое место и отпустите');
+    });
+    el.addEventListener('dragend', (e)=>{
+      // clear draggingPlaced if not dropped
+      // drop handler will set to null after successful move; if not moved, keep state
+      setTimeout(()=>{ draggingPlaced = null; clearHighlights(playerCells); }, 30);
+    });
+
+    // click to select for move (tap)
+    el.addEventListener('click', (ev)=>{
       ev.stopPropagation();
-      // select this ship for moving
+      // select for tap placement mode
       const shipObj = placedShips.find(s => s.el === el);
       if(!shipObj) return;
-      if(selectedPlacedShip && selectedPlacedShip.id === shipObj.id){
-        // second click toggles off
-        unselectPlacedShip();
+      if(shipObj.el.classList.contains('selected')){
+        shipObj.el.classList.remove('selected'); draggingPlaced = null; setHint('Выбор отменён');
       } else {
-        selectPlacedShip(shipObj);
+        // unselect others
+        placedShips.forEach(s=>s.el.classList.remove('selected'));
+        shipObj.el.classList.add('selected');
+        draggingPlaced = shipObj;
+        setHint('Корабль выбран. Тапните клетку, чтобы переместить');
       }
     });
-    // allow long-press or double-tap later for more interactions if needed
   }
 
   boardEl.appendChild(el);
@@ -363,126 +388,134 @@ function placeShip(boardCells, arrState, boardEl, index, size, owner='player', r
 
 /* ====== Highlights preview ====== */
 function clearHighlights(cells){ cells.forEach(c=>c.classList.remove('valid','invalid')); }
-function highlightPreview(cells, index, size){
+function highlightPreview(cells, index, size, ignoreCells=[]){
   clearHighlights(cells);
   const {r,c} = idxToRC(Number(index));
   for(let k=0;k<size;k++){
     const rr = r; const cc = c + k;
     if(!isInside(rr,cc)) continue;
     const id = rcToIdx(rr,cc);
-    if(canPlace(playerState, index, size)) cells[id].classList.add('valid'); else cells[id].classList.add('invalid');
+    if(canPlace(playerState, index, size, ignoreCells)) cells[id].classList.add('valid'); else cells[id].classList.add('invalid');
   }
 }
 
-/* ====== Selecting/moving placed ships (variant A: tap select -> tap new cell) ====== */
-function selectPlacedShip(shipObj){
-  unselectPlacedShip();
-  selectedPlacedShip = shipObj;
-  if(shipObj && shipObj.el) shipObj.el.classList.add('selected');
-  setHint(`Перемещение: выбран корабль ${shipObj.size}. Тапните новую клетку.`);
-  // visually allow placement previews that ignore this ship's own cells
-  // attach a temporary listener to player cells is already present; we'll handle in click handler (moveSelectedTo)
-}
-
-function unselectPlacedShip(){
-  if(selectedPlacedShip && selectedPlacedShip.el) selectedPlacedShip.el.classList.remove('selected');
-  selectedPlacedShip = null;
-  setHint('Выберите корабль внизу и тапните клетку или тапните размещённый корабль для перемещения.');
-}
-
-/* move selected placed ship to new index (if possible) */
-function moveSelectedTo(idx){
-  if(!selectedPlacedShip) return false;
-  const ship = selectedPlacedShip;
-  const size = ship.size;
-  // compute top-left coordinate we want to move to (r,c)
-  const {r,c} = idxToRC(Number(idx));
-  // ensure within bounds for horizontal only (current code uses horizontal placement)
+/* ====== Move placed ship to new index (used for drag-drop and tap-move) ====== */
+function movePlacedShipTo(shipObj, destIdx){
+  if(!shipObj) return false;
+  const size = shipObj.size;
+  const {r,c} = idxToRC(Number(destIdx));
   if(c + size - 1 > 9){ setHint('Нельзя переместить: выходит за поле'); return false; }
+  const ignore = shipObj.cells.slice();
+  if(!canPlace(playerState, destIdx, size, ignore)){ setHint('Нельзя разместить здесь'); return false; }
 
-  // create ignoreCells = current ship cells so canPlace ignores them
-  const ignore = ship.cells.slice();
-  if(!canPlace(playerState, idx, size, ignore)){
-    setHint('Нельзя разместить здесь (столкновение или близко к другому кораблю)');
-    return false;
-  }
-
-  // remove current occupancy
-  ship.cells.forEach(i => {
+  // clear old
+  shipObj.cells.forEach(i=>{
     playerState[i].ship = false;
     playerState[i].shipRef = null;
     playerCells[i].classList.remove('occupied');
   });
 
-  // update element position and cells
+  // set new
   const pad = boardPaddingPx(playerBoardEl);
   const left = c * cellFullPx() + pad;
-  const top = r * cellFullPx() + pad;
+  const top  = r * cellFullPx() + pad;
   const width = widthForSize(size);
-  ship.el.style.left = left + 'px';
-  ship.el.style.top = top + 'px';
-  ship.el.style.width = width + 'px';
-  ship.el.style.height = SHIP_HEIGHT + 'px';
+  shipObj.el.style.left = left + 'px';
+  shipObj.el.style.top = top + 'px';
+  shipObj.el.style.width = width + 'px';
+  shipObj.el.style.height = SHIP_HEIGHT + 'px';
 
   const newCells = [];
   for(let k=0;k<size;k++){
     const id = rcToIdx(r, c + k);
     playerState[id].ship = true;
-    playerState[id].shipRef = ship.el;
+    playerState[id].shipRef = shipObj.el;
     playerCells[id].classList.add('occupied');
     newCells.push(id);
   }
-  ship.cells = newCells;
-  unselectPlacedShip();
+  shipObj.cells = newCells;
+  shipObj.el.classList.remove('selected');
+  draggingPlaced = null;
   clearHighlights(playerCells);
   setHint('Корабль перемещён');
   return true;
 }
 
-/* ====== Attach player cell events (placement & moving) ====== */
+/* ====== Attach player cell events (placement & drop & tap-move) ====== */
 function attachPlayerCellEvents(){
+  // allow drop on cells
   playerCells.forEach(cell=>{
-    cell.addEventListener('pointermove', (e)=>{
-      if(selectedSize && !gameStarted && !autoLocked){
-        const idx = Number(cell.dataset.index);
-        highlightPreview(playerCells, idx, selectedSize);
+    cell.addEventListener('dragover', (e)=>{
+      e.preventDefault();
+      const idx = Number(cell.dataset.index);
+      if(draggingSize){
+        // dragging from panel
+        highlightPreview(playerCells, idx, draggingSize);
+      } else if(draggingPlaced){
+        // dragging an existing ship: ignore its own cells
+        highlightPreview(playerCells, idx, draggingPlaced.size, draggingPlaced.cells);
       }
     });
-    cell.addEventListener('pointerout', ()=> clearHighlights(playerCells) );
+    cell.addEventListener('dragleave', ()=> clearHighlights(playerCells));
+    cell.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      const idx = Number(cell.dataset.index);
+      // drop from panel
+      if(draggingSize){
+        if(!canPlace(playerState, idx, draggingSize)){ setHint('Нельзя разместить здесь'); clearHighlights(playerCells); draggingSize=null; return; }
+        placeShip(playerCells, playerState, playerBoardEl, idx, draggingSize, 'player');
+        pool[draggingSize]--; updateCounts();
+        draggingSize = null;
+        document.querySelectorAll('.agg').forEach(x=>x.style.outline='none');
+        clearHighlights(playerCells);
+        setHint('Корабль размещён');
+        if(Object.values(pool).every(v=>v===0)){ startBtn.disabled=false; setHint('Все корабли размещены — нажмите Старт'); }
+        return;
+      }
+      // drop an existing ship (move)
+      if(draggingPlaced){
+        movePlacedShipTo(draggingPlaced, idx);
+        return;
+      }
+    });
+
+    // tap placement / tap-move support
     cell.addEventListener('click', ()=>{
       if(gameStarted) return;
       if(autoLocked) return;
       const idx = Number(cell.dataset.index);
-      // if there is a selected placed ship -> attempt move
-      if(selectedPlacedShip){
-        // try horizontal move to this idx's column
-        const ok = moveSelectedTo(idx);
-        if(ok){
-          // after moving, update counts/enable start if finished
-          if(Object.values(pool).every(v=>v===0)){ startBtn.disabled=false; setHint('Все корабли размещены — нажмите Старт'); }
-        }
+      // if user has selected existing placed ship (via click) -> move it
+      if(draggingPlaced && !draggingSize){
+        movePlacedShipTo(draggingPlaced, idx);
         return;
       }
-      // normal placement from pool
-      if(!selectedSize){ setHint('Выберите корабль внизу'); return; }
-      if(!canPlace(playerState, idx, selectedSize)){ setHint('Нельзя разместить здесь'); return; }
-      placeShip(playerCells, playerState, playerBoardEl, idx, selectedSize, 'player');
-      pool[selectedSize]--; updateCounts();
-      selectedSize = null;
-      document.querySelectorAll('.agg').forEach(x=>x.style.outline='none');
-      clearHighlights(playerCells);
-      setHint('Корабль размещён');
-      if(Object.values(pool).every(v=>v===0)){ startBtn.disabled=false; setHint('Все корабли размещены — нажмите Старт'); }
+      // else if draggingSize selected via click -> place
+      if(draggingSize){
+        if(!canPlace(playerState, idx, draggingSize)){ setHint('Нельзя разместить здесь'); return; }
+        placeShip(playerCells, playerState, playerBoardEl, idx, draggingSize, 'player');
+        pool[draggingSize]--; updateCounts();
+        draggingSize = null;
+        document.querySelectorAll('.agg').forEach(x=>x.style.outline='none');
+        clearHighlights(playerCells);
+        setHint('Корабль размещён');
+        if(Object.values(pool).every(v=>v===0)){ startBtn.disabled=false; setHint('Все корабли размещены — нажмите Старт'); }
+      } else {
+        setHint('Выберите корабль внизу и перетащите или тапните клетку.');
+      }
     });
   });
 
-  // clicking outside any ship cancels selection
+  // clicking outside cancels selection
   document.addEventListener('click', (e)=>{
     const withinBoard = e.target.closest('#playerBoard');
     const clickedShipEl = e.target.closest('.placed-ship');
     if(!withinBoard && !clickedShipEl){
-      unselectPlacedShip();
+      // unselect all placed ships
+      placedShips.forEach(s=>s.el.classList.remove('selected'));
+      draggingPlaced = null;
+      // clear panel outlines
       document.querySelectorAll('.agg').forEach(x=>x.style.outline='none');
+      draggingSize = null;
     }
   });
 }
@@ -495,12 +528,12 @@ function updateCounts(){
     if(pool[s.size] <= 0){
       const row = document.querySelector(`.agg[data-size="${s.size}"]`);
       if(row) row.remove();
-      if(selectedSize===s.size) selectedSize=null;
+      if(draggingSize===s.size) draggingSize=null;
     }
   }
 }
 
-/* ====== Auto-place player ====== */
+/* ====== Auto-place player (kept, but will be hidden after start) ====== */
 function autoPlacePlayer(){
   placedShips.forEach(s=>s.el && s.el.remove());
   placedShips = [];
@@ -614,7 +647,6 @@ function botMove(){
     setHint('Бот попал! Бот ходит снова.');
     setTimeout(botMove, 400);
     if(checkWinPlayer()) finish(false);
-    // also check if any player ship sunk -> mark neighbors
     checkSunk(placedShips, playerState, 'player');
   } else {
     playerState[idx].miss = true; renderMiss(playerCells[idx]);
@@ -624,7 +656,6 @@ function botMove(){
 
 /* ====== Mark neighbors as misses when ship sunk ====== */
 function markNeighborsAsMisses(shipObj, arrState, domCells){
-  // for each ship cell, mark adjacent 3x3 cells as miss if not a ship and not already marked
   for(const id of shipObj.cells){
     const {r,c} = idxToRC(id);
     for(let dr=-1; dr<=1; dr++){
@@ -632,11 +663,9 @@ function markNeighborsAsMisses(shipObj, arrState, domCells){
         const nr = r + dr, nc = c + dc;
         if(!isInside(nr,nc)) continue;
         const nid = rcToIdx(nr,nc);
-        // skip ship cells
         if(arrState[nid].ship) continue;
         if(!arrState[nid].miss && !arrState[nid].hit){
           arrState[nid].miss = true;
-          // render miss on DOM if provided
           if(domCells && domCells[nid]) renderMiss(domCells[nid]);
         }
       }
@@ -652,11 +681,9 @@ function checkSunk(list, arrState, owner){
     if(allHit){
       sh.sunk = true;
       if(owner==='enemy'){
-        sh.el.style.opacity = 1; sh.el.style.filter=''; // reveal enemy ship
-        // mark surrounding cells on enemy board as miss
+        sh.el.style.opacity = 1; sh.el.style.filter=''; // reveal
         markNeighborsAsMisses(sh, arrState, enemyCells);
       } else {
-        // mark surrounding cells on player board as miss
         markNeighborsAsMisses(sh, arrState, playerCells);
       }
     }
@@ -693,11 +720,16 @@ document.getElementById('autoBtn').addEventListener('click', ()=>{ if(gameStarte
 document.getElementById('resetBtn').addEventListener('click', ()=>{ init(); setHint('Сброшено'); });
 startBtn.addEventListener('click', ()=>{
   if(Object.values(pool).some(v=>v>0)){ setHint('Разместите все корабли прежде чем стартовать'); return; }
-  document.getElementById('enemyWrap').style.display = 'block';
+  // hide controls that must be removed after start
+  diffPanel.style.display = 'none';
+  document.getElementById('autoBtn').style.display = 'none';
+  startBtn.style.display = 'none';
+  // keep reset button visible if you want
   gameStarted = true; playerTurn = true;
   setHint('Игра началась. Ваш ход.');
   autoPlaceEnemy();
-  startBtn.disabled = true;
+  // attach enemy click handlers
+  attachEnemyCellEvents();
 });
 
 // difficulty buttons
@@ -710,8 +742,14 @@ document.querySelectorAll('.diff-btn').forEach(btn=>{
   });
 });
 
-// enemy cell clicks -> shooting
+/* enemy cell clicks -> shooting */
 function attachEnemyCellEvents(){
+  enemyCells.forEach(cell=>{
+    // remove previous
+    cell.replaceWith(cell.cloneNode(true));
+  });
+  // re-query
+  enemyCells = Array.from(document.querySelectorAll('#enemyBoard .cell'));
   enemyCells.forEach(cell=>{
     cell.addEventListener('click', ()=>{
       const idx = Number(cell.dataset.index);
@@ -725,39 +763,31 @@ document.getElementById('replayBtn').addEventListener('click', ()=>{ init(); doc
 
 /* ====== Init everything ====== */
 function init(){
-  // top numbers
   buildTopNumbers(coordsTop);
   buildTopNumbers(coordsTopEnemy);
-
-  // grids
   buildGrid(playerBoardEl, playerCells, playerState);
   buildGrid(enemyBoardEl, enemyCells, enemyState);
-
-  // pool
   buildPool();
-
-  // attach events for placement
   attachPlayerCellEvents();
-
-  // attach enemy click after grid built
   attachEnemyCellEvents();
 
-  // reset state flags
   placedShips.forEach(s=>s.el && s.el.remove()); placedShips = [];
   enemyShips.forEach(s=>s.el && s.el.remove()); enemyShips = [];
   playerState = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipRef:null}));
   enemyState  = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipRef:null}));
   pool = {}; for(const s of SHIP_SPEC) pool[s.size] = s.count;
   updateCounts();
-  autoLocked=false; gameStarted=false; playerTurn=true; selectedSize=null;
-  selectedPlacedShip = null;
+  autoLocked=false; gameStarted=false; playerTurn=true; draggingSize=null; draggingPlaced=null;
   document.getElementById('enemyWrap').style.display = 'none';
+  // restore control visibility
+  diffPanel.style.display = 'flex';
+  document.getElementById('autoBtn').style.display = 'inline-block';
+  startBtn.style.display = 'inline-block';
   startBtn.disabled = true;
-  setHint('Выберите корабль внизу и тапните клетку или нажмите Авто.');
+  setHint('Перетащи корабль из панели на поле или тапни для выбора.');
 }
 
 init();
-
 </script>
 </body>
 </html>
