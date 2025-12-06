@@ -314,7 +314,8 @@ function placeShip(boardCells, arrState, boardEl, index, size, owner='player', r
   el.style.top  = top  + 'px';
   el.style.width = width + 'px';
   el.style.height = SHIP_HEIGHT + 'px';
-  el.style.pointerEvents = 'auto';
+  // IMPORTANT: enemy ships must NOT block clicks on cells -> pointer-events none
+  el.style.pointerEvents = (owner === 'player') ? 'auto' : 'none';
 
   const spec = SHIP_SPEC.find(s=>s.size===size);
   if(spec && IMG[spec.key]){
@@ -462,6 +463,7 @@ function autoPlaceEnemy(){
       const c = Math.floor(Math.random()*(10 - size + 1));
       const idx = rcToIdx(r,c);
       if(canPlace(enemyState, idx, size)){
+        // IMPORTANT: pass enemyCells array so placeShip marks proper DOM cells
         placeShip(enemyCells, enemyState, enemyBoardEl, idx, size, 'enemy', false);
         placed = true;
       }
@@ -516,6 +518,7 @@ function playerShoot(idx){
     setHint('Попадание! Продолжайте.');
     checkSunk(enemyShips, enemyState, 'enemy');
     if(checkWinEnemy()) finish(true);
+    // player keeps turn on hit
   } else {
     enemyState[idx].miss = true; renderMiss(enemyCells[idx]);
     playerTurn = false;
@@ -551,6 +554,7 @@ function botMove(){
     playerState[idx].hit = true; renderHit(playerCells[idx]);
     setHint('Бот попал! Бот ходит снова.');
     setTimeout(botMove, 400);
+    checkSunk(placedShips, playerState, 'player');
     if(checkWinPlayer()) finish(false);
   } else {
     playerState[idx].miss = true; renderMiss(playerCells[idx]);
@@ -566,7 +570,9 @@ function checkSunk(list, arrState, owner){
     if(allHit){
       sh.sunk = true;
       if(owner==='enemy'){
-        sh.el.style.opacity = 1; sh.el.style.filter='';
+        // reveal enemy ship visually
+        if(sh.el){ sh.el.style.opacity = 1; sh.el.style.filter = ''; }
+        // mark surrounding as misses
         markSurroundingAsMiss(sh.cells, enemyState, enemyCells);
       } else {
         markSurroundingAsMiss(sh.cells, playerState, playerCells);
@@ -601,20 +607,38 @@ function launchConfetti(count=80, dur=4000){
 }
 
 /* ====== Controls wiring ====== */
-document.getElementById('autoBtn').addEventListener('click', ()=>{ if(gameStarted) return; autoPlacePlayer(); autoPlaceEnemy(); autoLocked=true; setHint('Авторасстановка готова. Нажмите Старт.'); startBtn.disabled=false; });
+document.getElementById('autoBtn').addEventListener('click', ()=>{ if(gameStarted) return; autoPlacePlayer(); 
+  // ensure enemyCells exists before autoPlaceEnemy
+  if(enemyCells.length === 0){
+    // rebuild enemy grid so enemyCells array is populated
+    buildGrid(enemyBoardEl, enemyCells, enemyState);
+    enemyCells = Array.from(document.querySelectorAll('#enemyBoard .cell'));
+  }
+  autoPlaceEnemy();
+  autoLocked=true; setHint('Авторасстановка готова. Нажмите Старт.'); startBtn.disabled=false; 
+});
+
 document.getElementById('resetBtn').addEventListener('click', ()=>{ init(); setHint('Сброшено'); });
+
 startBtn.addEventListener('click', ()=>{
   if(Object.values(pool).some(v=>v>0)){ setHint('Разместите все корабли прежде чем стартовать'); return; }
-          // ensure enemy ships are placed now
-  // rebuild enemyCells and attach event handlers AFTER placement
-  buildGrid(enemyBoardEl, enemyCells, enemyState); // rebuild empty cells
-  autoPlaceEnemy();  
-  attachEnemyCellEvents();
-  attachEnemyCellEvents();
-  // rebuild cell references and attach handlers
-  enemyCells = Array.from(document.querySelectorAll('#enemyBoard .cell'));
-  
+
   document.getElementById('enemyWrap').style.display = 'block';
+
+  // Place enemy ships if not already placed. Make sure enemyCells refers to current DOM cells.
+  if(enemyCells.length === 0){
+    buildGrid(enemyBoardEl, enemyCells, enemyState);
+    enemyCells = Array.from(document.querySelectorAll('#enemyBoard .cell'));
+  }
+
+  if(enemyShips.length === 0){
+    autoPlaceEnemy();
+  }
+
+  // refresh reference to enemy cells (in case DOM changed) and attach handlers
+  enemyCells = Array.from(document.querySelectorAll('#enemyBoard .cell'));
+  attachEnemyCellEvents();
+
   gameStarted = true; playerTurn = true;
   setHint('Игра началась. Ваш ход.');
   startBtn.disabled = true;
@@ -632,12 +656,11 @@ document.querySelectorAll('.diff-btn').forEach(btn=>{
 
 // enemy cell clicks -> shooting
 function attachEnemyCellEvents(){
-  // remove previous handlers (clone trick) and re-query fresh cells
-  enemyCells.forEach(cell=>{
-    const clone = cell.cloneNode(true);
-    cell.parentNode.replaceChild(clone, cell);
-  });
+  // get fresh list and assign handlers, avoid duplicates by clearing onclick
   enemyCells = Array.from(document.querySelectorAll('#enemyBoard .cell'));
+  enemyCells.forEach(cell=>{
+    cell.onclick = null;
+  });
   enemyCells.forEach(cell=>{
     cell.addEventListener('click', ()=>{
       const idx = Number(cell.dataset.index);
@@ -655,6 +678,10 @@ function init(){
   buildTopNumbers(coordsTopEnemy);
   buildGrid(playerBoardEl, playerCells, playerState);
   buildGrid(enemyBoardEl, enemyCells, enemyState);
+  // refresh arrays
+  playerCells = Array.from(document.querySelectorAll('#playerBoard .cell'));
+  enemyCells = Array.from(document.querySelectorAll('#enemyBoard .cell'));
+
   buildPool();
   attachPlayerCellEvents();
   // do not attach enemy handlers until enemy is placed
