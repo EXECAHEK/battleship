@@ -248,7 +248,7 @@ function renderAgg(spec){
 
   // click: also select for tap placement
   row.addEventListener('click', ()=>{
-    if(autoLocked) return;
+    // allow selecting a ship even after auto (user wanted selection back)
     draggingSize = spec.size;
     document.querySelectorAll('.agg').forEach(x=>x.style.outline='none');
     row.style.outline = '2px solid rgba(31,182,255,0.45)';
@@ -482,7 +482,7 @@ function attachPlayerCellEvents(){
     // tap placement / tap-move support
     cell.addEventListener('click', ()=>{
       if(gameStarted) return;
-      if(autoLocked) return;
+      // note: allow tap placement even if autoLocked — user requested panel selection should work
       const idx = Number(cell.dataset.index);
       // if user has selected existing placed ship (via click) -> move it
       if(draggingPlaced && !draggingSize){
@@ -724,6 +724,8 @@ startBtn.addEventListener('click', ()=>{
   diffPanel.style.display = 'none';
   document.getElementById('autoBtn').style.display = 'none';
   startBtn.style.display = 'none';
+  // show enemy field
+  document.getElementById('enemyWrap').style.display = 'block';
   // keep reset button visible if you want
   gameStarted = true; playerTurn = true;
   setHint('Игра началась. Ваш ход.');
@@ -744,8 +746,8 @@ document.querySelectorAll('.diff-btn').forEach(btn=>{
 
 /* enemy cell clicks -> shooting */
 function attachEnemyCellEvents(){
+  // remove previous handlers by replacing nodes
   enemyCells.forEach(cell=>{
-    // remove previous
     cell.replaceWith(cell.cloneNode(true));
   });
   // re-query
