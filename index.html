@@ -609,7 +609,7 @@ startBtn.addEventListener('click', ()=>{
   // rebuild enemyCells and attach event handlers AFTER placement
   buildGrid(enemyBoardEl, enemyCells, enemyState); // rebuild empty cells
   autoPlaceEnemy();  
-  attachEnemyCellEvents()
+  
   // rebuild cell references and attach handlers
   enemyCells = Array.from(document.querySelectorAll('#enemyBoard .cell'));
   attachEnemyCellEvents();
