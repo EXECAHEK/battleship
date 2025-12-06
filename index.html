@@ -608,11 +608,8 @@ startBtn.addEventListener('click', ()=>{
   autoPlaceEnemy();          // ensure enemy ships are placed now
   // rebuild enemyCells and attach event handlers AFTER placement
   buildGrid(enemyBoardEl, enemyCells, enemyState); // rebuild empty cells
-  // place enemy ships onto the newly built cells based on enemyState
-  // (we re-place so DOM .cell references align with state)
-  // to do that: clear enemyShips and call autoPlaceEnemy again but preserve state,
-  // simpler: place now then attach handlers
-  autoPlaceEnemy();
+  
+  
   // rebuild cell references and attach handlers
   enemyCells = Array.from(document.querySelectorAll('#enemyBoard .cell'));
   attachEnemyCellEvents();
