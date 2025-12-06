@@ -612,7 +612,7 @@ startBtn.addEventListener('click', ()=>{
   
   // rebuild cell references and attach handlers
   enemyCells = Array.from(document.querySelectorAll('#enemyBoard .cell'));
-  attachEnemyCellEvents();
+  
   document.getElementById('enemyWrap').style.display = 'block';
   gameStarted = true; playerTurn = true;
   setHint('Игра началась. Ваш ход.');
