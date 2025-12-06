@@ -6,7 +6,7 @@
 <title>Морской бой — моб</title>
 <style>
 :root{
-  --cell:35px;            /* размер клетки */
+  --cell:35px;
   --label-font:16px;
   --label-offset:12px;
   --accent:#1fb6ff;
@@ -15,8 +15,8 @@
   --panel:#0a2b30;
   --miss-gray:#6b6f76;
   --ship-h:35px;
-  --gap:2px;              /* gap между клетками (должен совпадать с CSS grid gap) */
-  --highlight-ok: #7CFF00; /* выбранный зелёный (вариант B) */
+  --gap:2px;
+  --highlight-ok: #7CFF00;
   --highlight-ok-width: 3px;
   --highlight-bad: rgba(255,50,50,0.18);
 }
@@ -41,10 +41,7 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#02151a,#052a33
 .cell.invalid{ box-shadow: inset 0 0 0 var(--highlight-ok-width) var(--highlight-bad); }
 .cell.occupied{ background-color:transparent; }
 
-/* placed ship container and rotated image handling
-   We position container exactly to cells, and inside put the original vertical PNG rotated 90deg,
-   so the sprite becomes horizontal without distortion.
-*/
+/* placed ship container and rotated image handling */
 .placed-ship{ position:absolute; pointer-events:auto; overflow:visible; z-index:20; cursor:pointer; }
 .placed-ship img{ position:absolute; left:0; top:0; display:block; user-select:none; -webkit-user-drag:none; transform-origin:left top; }
 
@@ -141,21 +138,21 @@ const GAP  = parseInt(getComputedStyle(document.documentElement).getPropertyValu
 const SHIP_HEIGHT = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--ship-h')) || 35;
 
 const SHIP_SPEC = [
-  { size: 4, count: 1, key: 'ship1', name:'Линкор', width: 4 * CELL },
-  { size: 3, count: 2, key: 'ship2', name:'Крейсер', width: 3 * CELL },
-  { size: 2, count: 3, key: 'ship3', name:'Эсминец', width: 2 * CELL },
-  { size: 1, count: 4, key: 'ship4', name:'Катер', width: 1 * CELL }
+  { size: 4, count: 1, key: 'ship11', name:'Линкор', width: 4 * CELL },
+  { size: 3, count: 2, key: 'ship22', name:'Крейсер', width: 3 * CELL },
+  { size: 2, count: 3, key: 'ship33', name:'Эсминец', width: 2 * CELL },
+  { size: 1, count: 4, key: 'ship44', name:'Катер', width: 1 * CELL }
 ];
 
 const IMG_BASE = 'assets/ships/';
 const IMG = {
-  ship1: IMG_BASE + 'ship1.png',
-  ship2: IMG_BASE + 'ship2.png',
-  ship3: IMG_BASE + 'ship3.png',
-  ship4: IMG_BASE + 'ship4.png',
-  hit: 'assets/hit.png',
-  miss: 'assets/miss.png',
-  explosion: 'assets/explosion.png'
+  ship1: IMG_BASE + 'ship11.png',
+  ship2: IMG_BASE + 'ship22.png',
+  ship3: IMG_BASE + 'ship33.png',
+  ship4: IMG_BASE + 'ship44.png',
+  hit: 'assets/ships/hit.png',
+  miss: 'assets/ships/miss.png',
+  explosion: 'assets/ships/explosion.png'
 };
 
 /* ====== STATE ====== */
@@ -261,6 +258,7 @@ function renderAgg(spec){
 
 /* ====== Placement rules: no adjacency (including diagonal) ====== */
 function canPlace(arrState, index, size){
+  if(index === undefined || index === null) return false;
   const {r,c} = idxToRC(Number(index));
   if(c + size - 1 > 9) return false;
   for(let k=0;k<size;k++){
@@ -282,26 +280,19 @@ function canPlace(arrState, index, size){
 
 /* ====== Remove a placed ship (used for moving) ====== */
 function pickupShip(shipObj){
-  // remove DOM element
   if(!shipObj) return;
   const {size, cells, el} = shipObj;
-  // clear state
   for(const idx of cells){
     playerState[idx].ship = false;
     playerState[idx].hit = false;
     playerState[idx].miss = false;
     playerState[idx].shipRef = null;
     playerCells[idx].classList.remove('occupied','hit','miss');
-    // remove inner visuals if any
     while(playerCells[idx].firstChild) playerCells[idx].removeChild(playerCells[idx].firstChild);
   }
-  // remove placed-ship element
   if(el && el.parentNode) el.parentNode.removeChild(el);
-  // remove from placedShips list
   placedShips = placedShips.filter(s=>s.id !== shipObj.id);
-  // return ship to pool
   pool[size] = (pool[size] || 0) + 1;
-  // re-render aggregates (if removed earlier)
   aggregatesEl.innerHTML = '';
   for(const s of SHIP_SPEC) if(pool[s.size]>0) renderAgg(s);
   updateCounts();
@@ -309,17 +300,10 @@ function pickupShip(shipObj){
   setHint(`Корабль ${size} поднят. Выберите клетку для размещения.`);
 }
 
-/* ====== Place ship ======
-   Container placed at exact top-left of first cell (left/top computed with cellFullPx)
-   Container width = widthForSize(size)
-   Inside container we place the original vertical PNG and rotate it 90deg,
-   then translate it so its top-left matches the container origin.
-*/
+/* ====== Place ship ====== */
 function placeShip(boardCells, arrState, boardEl, index, size, owner='player', reveal=false){
   const {r,c} = idxToRC(Number(index));
   const width = widthForSize(size);
-
-  // account for board padding (so ships align with grid)
   const pad = getBoardPadding(boardEl);
   const left = c * cellFullPx() + pad.left;
   const top  = r * cellFullPx() + pad.top;
@@ -337,8 +321,6 @@ function placeShip(boardCells, arrState, boardEl, index, size, owner='player', r
     const img = document.createElement('img');
     img.src = IMG[spec.key];
     img.alt = spec.name;
-    // We'll size the image to (img.width = SHIP_HEIGHT, img.height = width)
-    // then rotate 90deg and translate so it fits inside container.
     img.style.width = SHIP_HEIGHT + 'px';
     img.style.height = width + 'px';
     img.style.objectFit = 'contain';
@@ -348,11 +330,9 @@ function placeShip(boardCells, arrState, boardEl, index, size, owner='player', r
     el.appendChild(img);
   }
 
-  // add click handler to allow pick-up (move) on player's ships
   if(owner === 'player'){
     el.addEventListener('click', (e)=>{
       e.stopPropagation();
-      // find shipObj
       const shipObj = placedShips.find(s => s.el === el);
       if(shipObj){
         pickupShip(shipObj);
@@ -375,7 +355,7 @@ function placeShip(boardCells, arrState, boardEl, index, size, owner='player', r
     }
     cellsIdx.push(id);
   }
-  const shipObj = { id: Math.random().toString(36).slice(2,9), size, cells: cellsIdx, el, owner, sunk:false };
+  const shipObj = { id: Math.random().toString(36).slice(2,9), size, cells: cellsIdx.slice(), el, owner, sunk:false };
   if(owner==='player') placedShips.push(shipObj); else enemyShips.push(shipObj);
 
   if(owner==='enemy' && !reveal){
@@ -388,6 +368,7 @@ function placeShip(boardCells, arrState, boardEl, index, size, owner='player', r
 function clearHighlights(cells){ cells.forEach(c=>c.classList.remove('valid','invalid')); }
 function highlightPreview(cells, index, size){
   clearHighlights(cells);
+  if(index === undefined || index === null) return;
   const {r,c} = idxToRC(Number(index));
   for(let k=0;k<size;k++){
     const rr = r; const cc = c + k;
@@ -498,12 +479,9 @@ function markSurroundingAsMiss(shipCells, stateArr, domCells){
         const nc = c + dc;
         if(!isInside(nr,nc)) continue;
         const nid = rcToIdx(nr,nc);
-        // if it's part of the ship itself, skip (it is hit already)
         if(shipCells.includes(nid)) continue;
-        // mark as miss if not already hit/miss and not a ship (for enemy)
         if(!stateArr[nid].hit && !stateArr[nid].miss){
           stateArr[nid].miss = true;
-          // render miss visually
           if(domCells && domCells[nid]) renderMiss(domCells[nid]);
         }
       }
@@ -517,7 +495,7 @@ function renderHit(cellEl){
   const svg = document.createElementNS(svgns,'svg'); svg.setAttribute('viewBox','0 0 48 48'); svg.classList.add('hit-svg');
   const l1 = document.createElementNS(svgns,'line'); l1.setAttribute('x1','6'); l1.setAttribute('y1','6'); l1.setAttribute('x2','42'); l1.setAttribute('y2','42'); l1.setAttribute('stroke','white'); l1.setAttribute('stroke-width','3'); l1.setAttribute('stroke-linecap','round');
   const l2 = document.createElementNS(svgns,'line'); l2.setAttribute('x1','42'); l2.setAttribute('y1','6'); l2.setAttribute('x2','6'); l2.setAttribute('y2','42'); l2.setAttribute('stroke','white'); l2.setAttribute('stroke-width','3'); l2.setAttribute('stroke-linecap','round');
-  svg.appendChild(l1); svg.appendChild(l2); cellEl.appendChild(svg);
+  svg.appendChild(l1); svg.appendChild(l2); if(cellEl) cellEl.appendChild(svg);
 }
 
 function renderMiss(cellEl){
@@ -588,12 +566,9 @@ function checkSunk(list, arrState, owner){
     if(allHit){
       sh.sunk = true;
       if(owner==='enemy'){
-        // reveal ship visually
         sh.el.style.opacity = 1; sh.el.style.filter='';
-        // mark all neighbors as misses (for enemy)
         markSurroundingAsMiss(sh.cells, enemyState, enemyCells);
       } else {
-        // if player's ship sunk, mark neighbors on player's board for bot logic (optional)
         markSurroundingAsMiss(sh.cells, playerState, playerCells);
       }
     }
@@ -630,8 +605,16 @@ document.getElementById('autoBtn').addEventListener('click', ()=>{ if(gameStarte
 document.getElementById('resetBtn').addEventListener('click', ()=>{ init(); setHint('Сброшено'); });
 startBtn.addEventListener('click', ()=>{
   if(Object.values(pool).some(v=>v>0)){ setHint('Разместите все корабли прежде чем стартовать'); return; }
-  // ensure enemy placed now (only once) and attach handlers after
+  autoPlaceEnemy();          // ensure enemy ships are placed now
+  // rebuild enemyCells and attach event handlers AFTER placement
+  buildGrid(enemyBoardEl, enemyCells, enemyState); // rebuild empty cells
+  // place enemy ships onto the newly built cells based on enemyState
+  // (we re-place so DOM .cell references align with state)
+  // to do that: clear enemyShips and call autoPlaceEnemy again but preserve state,
+  // simpler: place now then attach handlers
   autoPlaceEnemy();
+  // rebuild cell references and attach handlers
+  enemyCells = Array.from(document.querySelectorAll('#enemyBoard .cell'));
   attachEnemyCellEvents();
   document.getElementById('enemyWrap').style.display = 'block';
   gameStarted = true; playerTurn = true;
@@ -651,11 +634,11 @@ document.querySelectorAll('.diff-btn').forEach(btn=>{
 
 // enemy cell clicks -> shooting
 function attachEnemyCellEvents(){
-  // remove previous handlers to avoid duplicates
+  // remove previous handlers (clone trick) and re-query fresh cells
   enemyCells.forEach(cell=>{
-    cell.replaceWith(cell.cloneNode(true));
+    const clone = cell.cloneNode(true);
+    cell.parentNode.replaceChild(clone, cell);
   });
-  // re-query
   enemyCells = Array.from(document.querySelectorAll('#enemyBoard .cell'));
   enemyCells.forEach(cell=>{
     cell.addEventListener('click', ()=>{
@@ -670,24 +653,13 @@ document.getElementById('replayBtn').addEventListener('click', ()=>{ init(); doc
 
 /* ====== Init everything ====== */
 function init(){
-  // top numbers
   buildTopNumbers(coordsTop);
   buildTopNumbers(coordsTopEnemy);
-
-  // grids
   buildGrid(playerBoardEl, playerCells, playerState);
   buildGrid(enemyBoardEl, enemyCells, enemyState);
-
-  // pool
   buildPool();
-
-  // attach events for placement
   attachPlayerCellEvents();
-
-  // NOTE: do not attach enemy events here; attach AFTER enemy placement to avoid mismatches
-  // attachEnemyCellEvents();
-
-  // reset state flags
+  // do not attach enemy handlers until enemy is placed
   placedShips.forEach(s=>s.el && s.el.remove()); placedShips = [];
   enemyShips.forEach(s=>s.el && s.el.remove()); enemyShips = [];
   playerState = Array.from({length:100}, ()=>({ship:false,hit:false,miss:false,shipRef:null}));
